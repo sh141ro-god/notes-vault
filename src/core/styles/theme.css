@@ -1,0 +1,340 @@
+/*
+ * Дизайн-токены приложения (перенос дизайна notes). ЕДИНСТВЕННАЯ точка правды.
+ * Три темы переключаются через [data-theme] на <html> (см. core/styles/theme.ts).
+ * Шрифты — системные стеки (внешние Google Fonts запрещены строгим CSP);
+ * сохранён контраст «моно-метки / sans-текст». Для пиксельной точности можно
+ * самостоятельно положить IBM Plex Mono + Inter локально и подставить в --font-*.
+ */
+
+:root {
+  --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Mono",
+    "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+
+  /* Шкалы */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --radius-sm: 0.5rem;
+  --radius: 0.75rem;
+  --radius-lg: 1.1rem;
+  --radius-xl: 1.4rem;
+  --radius-pill: 999px;
+
+  /* Тёмная тема — значения по умолчанию */
+  --bg: #373a3e;
+  --text: #e3e3db;
+  --dim: #a6a39c;
+  --sidebar: rgba(255, 255, 255, 0.05);
+  --field: rgba(255, 255, 255, 0.08);
+  --glass: rgba(255, 255, 255, 0.05);
+  --card: rgba(255, 255, 255, 0.06);
+  --card-border: rgba(255, 255, 255, 0.1);
+  --row-hover: rgba(255, 255, 255, 0.07);
+  --hairline: rgba(255, 255, 255, 0.1);
+  --outline: rgba(168, 200, 230, 0.55);
+  --checkbox: rgba(168, 200, 230, 0.35);
+
+  --accent: #a8c8e6;
+  --accent-hover: #8fb3d6;
+  --accent-text: #373a3e;
+  --accent-soft: rgba(168, 200, 230, 0.18);
+  --accent-border: rgba(168, 200, 230, 0.4);
+
+  --danger: #e6a8a8;
+  --danger-soft: rgba(230, 168, 168, 0.16);
+  --danger-border: rgba(230, 168, 168, 0.4);
+  --success: #a8e6c0;
+  --success-soft: rgba(168, 230, 192, 0.16);
+  --warning: #e6d4a8;
+  --warning-soft: rgba(230, 212, 168, 0.16);
+
+  --ratio-a: #d98a8a; /* 0% выполнено */
+  --ratio-b: #8fce9b; /* 100% выполнено */
+
+  --blob1: #46525e;
+  --blob2: #3d4651;
+
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+  color-scheme: dark;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+[data-theme='pastel'] {
+  --bg: #f5efe6;
+  --text: #4a4540;
+  --dim: #9b938b;
+  --sidebar: rgba(255, 255, 255, 0.5);
+  --field: rgba(255, 255, 255, 0.7);
+  --glass: rgba(255, 255, 255, 0.55);
+  --card: rgba(255, 255, 255, 0.55);
+  --card-border: rgba(74, 69, 64, 0.12);
+  --row-hover: rgba(255, 255, 255, 0.45);
+  --hairline: rgba(74, 69, 64, 0.1);
+  --outline: rgba(233, 184, 194, 0.55);
+  --checkbox: rgba(74, 69, 64, 0.3);
+
+  --accent: #e9b8c2;
+  --accent-hover: #e0a3b0;
+  --accent-text: #4a4540;
+  --accent-soft: rgba(233, 184, 194, 0.4);
+  --accent-border: rgba(233, 184, 194, 0.7);
+
+  --danger: #c97f93;
+  --danger-soft: rgba(201, 127, 147, 0.16);
+  --danger-border: rgba(201, 127, 147, 0.4);
+  --success: #7fae8a;
+  --success-soft: rgba(127, 174, 138, 0.18);
+  --warning: #c2a878;
+  --warning-soft: rgba(194, 168, 120, 0.18);
+
+  --ratio-a: #dd9aa6;
+  --ratio-b: #8fbf9a;
+
+  --blob1: #f3cdd6;
+  --blob2: #c5dcec;
+
+  --shadow: 0 18px 40px rgba(74, 69, 64, 0.14);
+  color-scheme: light;
+}
+
+[data-theme='mono'] {
+  --bg: #e3e3db;
+  --text: #373a3e;
+  --dim: #6d6d71;
+  --sidebar: rgba(255, 255, 255, 0.5);
+  --field: rgba(255, 255, 255, 0.7);
+  --glass: rgba(255, 255, 255, 0.55);
+  --card: rgba(255, 255, 255, 0.55);
+  --card-border: rgba(55, 58, 62, 0.1);
+  --row-hover: rgba(255, 255, 255, 0.55);
+  --hairline: rgba(55, 58, 62, 0.1);
+  --outline: rgba(55, 58, 62, 0.4);
+  --checkbox: rgba(55, 58, 62, 0.3);
+
+  --accent: #373a3e;
+  --accent-hover: #2a2d31;
+  --accent-text: #e3e3db;
+  --accent-soft: rgba(55, 58, 62, 0.12);
+  --accent-border: rgba(55, 58, 62, 0.3);
+
+  --danger: #b06b6b;
+  --danger-soft: rgba(176, 107, 107, 0.14);
+  --danger-border: rgba(176, 107, 107, 0.4);
+  --success: #5e8c6a;
+  --success-soft: rgba(94, 140, 106, 0.16);
+  --warning: #9c8553;
+  --warning-soft: rgba(156, 133, 83, 0.16);
+
+  --ratio-a: #c87f7f;
+  --ratio-b: #6fa67c;
+
+  --blob1: #d2d2cb;
+  --blob2: #cccbc3;
+
+  --shadow: 0 18px 40px rgba(55, 58, 62, 0.12);
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition:
+    background 0.3s ease,
+    color 0.3s ease;
+}
+
+/* Фоновые радиальные пятна (глубина под «стеклом») */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(12px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::before {
+  left: 36%;
+  top: -120px;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, var(--blob1), transparent 70%);
+  opacity: 0.7;
+}
+
+body::after {
+  left: 72%;
+  top: 56%;
+  width: 460px;
+  height: 460px;
+  background: radial-gradient(circle, var(--blob2), transparent 70%);
+  opacity: 0.6;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--hairline);
+  border-radius: 8px;
+}
+
+/* Базовые элементы (компоненты переопределяют раскладку) */
+button {
+  font: inherit;
+  cursor: pointer;
+  color: var(--text);
+  background: var(--field);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  transition:
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease,
+    opacity 0.14s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--row-hover);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: var(--text);
+  background: var(--field);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--dim);
+}
+
+a {
+  color: var(--text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Утилиты */
+.mono {
+  font-family: var(--font-mono);
+}
+
+.glass-card {
+  background: var(--glass);
+  border-radius: var(--radius-xl);
+  outline: 4px solid var(--outline);
+  outline-offset: 6px;
+  backdrop-filter: blur(26px) saturate(140%);
+  -webkit-backdrop-filter: blur(26px) saturate(140%);
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+/* Доп. токены под макет (accent2 / карточки заметок / strong) */
+:root {
+  --accent2-text: var(--accent);
+  --accent2-soft: var(--accent-soft);
+  --accent2-border: var(--accent-border);
+  --note-card: var(--card);
+  --note-border: var(--card-border);
+  --accent-strong: var(--accent);
+}
+[data-theme='pastel'] {
+  --accent2-text: #5b86a3;
+  --accent2-soft: rgba(174, 205, 224, 0.35);
+  --accent2-border: rgba(174, 205, 224, 0.6);
+  --note-card: rgba(197, 220, 236, 0.34);
+  --note-border: rgba(174, 205, 224, 0.6);
+  --accent-strong: #c97f93;
+}
+[data-theme='mono'] {
+  --accent2-text: #6d6d71;
+  --accent2-soft: rgba(109, 109, 113, 0.14);
+  --accent2-border: rgba(109, 109, 113, 0.3);
+  --note-card: rgba(255, 255, 255, 0.5);
+  --note-border: rgba(55, 58, 62, 0.1);
+  --accent-strong: #373a3e;
+}
+
+/*
+ * Непрозрачный фон выезжающего мобильного drawer (значения из мобильных
+ * макетов). --sidebar/--glass полупрозрачны и над затемнением выглядели бы
+ * грязно, поэтому у drawer отдельный сплошной токен.
+ */
+:root {
+  --drawer: #2e3135;
+}
+[data-theme='pastel'] {
+  --drawer: #efe7da;
+}
+[data-theme='mono'] {
+  --drawer: #ece9e0;
+}

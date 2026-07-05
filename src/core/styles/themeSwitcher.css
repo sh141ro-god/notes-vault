@@ -1,0 +1,33 @@
+.theme-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.theme-switch__label {
+  margin-right: auto;
+}
+
+.theme-switch__dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.theme-switch__dot--pastel {
+  background: #e9b8c2;
+}
+.theme-switch__dot--dark {
+  background: #a8c8e6;
+}
+.theme-switch__dot--mono {
+  background: #373a3e;
+}
+
+.theme-switch__dot--on {
+  border-color: var(--text);
+}

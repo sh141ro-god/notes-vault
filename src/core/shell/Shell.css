@@ -1,0 +1,267 @@
+.shell {
+  display: flex;
+  min-height: 100dvh;
+  color: var(--text);
+}
+
+.shell__sidebar {
+  width: 268px;
+  flex: none;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 26px 18px 18px;
+  background: var(--sidebar);
+  border-right: 1px solid var(--hairline);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.shell__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 16px;
+}
+
+.shell__logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--accent-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.shell__wordmark {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.shell__net {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  padding: 3px 7px;
+}
+
+.shell__net--off {
+  color: var(--dim);
+}
+
+.shell__section {
+  padding: 0 8px 6px;
+}
+
+.shell__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.shell__link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 9px;
+  border-radius: 9px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 450;
+  transition: background-color 0.14s ease;
+}
+
+.shell__link:hover {
+  background: var(--row-hover);
+}
+
+.shell__link--active {
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.shell__footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.shell__footer > .theme-switch {
+  padding: 8px 9px;
+  border-top: 1px solid var(--hairline);
+}
+
+.shell__enc {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--dim);
+  padding: 0 9px 4px;
+}
+
+.shell__main {
+  flex: 1;
+  min-width: 0;
+  padding: 30px 32px;
+}
+
+.shell__message {
+  color: var(--dim);
+  padding: var(--space-4);
+}
+
+/* --- Мобильные элементы: по умолчанию (десктоп) скрыты --- */
+.shell__topbar {
+  display: none;
+}
+
+.shell__scrim {
+  display: none;
+}
+
+.shell__sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Кнопка закрытия drawer нужна только в мобильном режиме. */
+.shell__drawer-close {
+  display: none;
+}
+
+/* ============================================================
+ * Мобильная оболочка (<=720px): выезжающий drawer + верхняя панель.
+ * Тот же сайдбар, что на десктопе, но off-canvas со свайпом/бургером.
+ * ============================================================ */
+@media (max-width: 720px) {
+  .shell {
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+
+  /* Верхняя панель с бургером (sticky, учитывает вырез экрана). */
+  .shell__topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    background: var(--sidebar);
+    border-bottom: 1px solid var(--hairline);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .shell__topbar .shell__wordmark {
+    font-size: 14px;
+  }
+
+  .shell__topbar .shell__net {
+    margin-left: auto;
+  }
+
+  .shell__burger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex: none;
+    padding: 0;
+    border-radius: 10px;
+    background: var(--glass);
+    border: 1px solid var(--hairline);
+    color: var(--text);
+  }
+
+  /* Сайдбар → off-canvas drawer. */
+  .shell__sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: min(84vw, 300px);
+    height: 100dvh;
+    z-index: 50;
+    gap: var(--space-2);
+    padding: calc(18px + env(safe-area-inset-top)) 16px
+      calc(20px + env(safe-area-inset-bottom));
+    border-right: 1px solid var(--hairline);
+    border-bottom: none;
+    background: var(--drawer, var(--sidebar));
+    box-shadow: 14px 0 40px rgba(0, 0, 0, 0.35);
+    overflow-y: auto;
+    transform: translateX(-110%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .shell__sidebar--open {
+    transform: translateX(0);
+  }
+
+  .shell__drawer-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    width: 34px;
+    height: 34px;
+    flex: none;
+    padding: 0;
+    border-radius: 9px;
+    background: var(--glass);
+    border: 1px solid var(--hairline);
+    color: var(--dim);
+  }
+
+  /* Затемнение под drawer. */
+  .shell__scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .shell__scrim[data-open='true'] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .shell__main {
+    padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Drawer-паттерн относится только к мобильному режиму: на широких экранах
+ * off-canvas-панель не нужна, поэтому специальные элементы остаются скрыты. */
+@media (min-width: 721px) {
+  .shell__sidebar {
+    transform: none;
+  }
+}

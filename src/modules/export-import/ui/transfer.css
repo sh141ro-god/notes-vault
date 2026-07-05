@@ -1,0 +1,45 @@
+.transfer {
+  max-width: 40rem;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+  font-family: system-ui, sans-serif;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.transfer__hint {
+  color: var(--dim);
+}
+
+.transfer__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.transfer__actions button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--accent-border);
+  border-radius: 0.375rem;
+  background: var(--row-hover);
+  font: inherit;
+  cursor: pointer;
+}
+
+.transfer__warn {
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--warning);
+}
+
+.transfer__info {
+  color: var(--success);
+}
+
+.transfer__error {
+  color: var(--danger);
+}

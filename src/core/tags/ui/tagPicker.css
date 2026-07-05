@@ -1,0 +1,54 @@
+.tagpicker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tagpicker__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.tagpicker__empty {
+  color: var(--dim);
+  font-size: 0.85rem;
+}
+
+.tagpicker__chip {
+  padding: 0.2rem 0.6rem;
+  border: 1.5px solid var(--accent-border);
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.tagpicker__chip--on {
+  font-weight: 600;
+}
+
+.tagpicker__add {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.tagpicker__add input {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--accent-border);
+  border-radius: 0.375rem;
+  font: inherit;
+}
+
+.tagpicker__add button {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--accent-border);
+  border-radius: 0.375rem;
+  background: var(--row-hover);
+  font: inherit;
+  cursor: pointer;
+}

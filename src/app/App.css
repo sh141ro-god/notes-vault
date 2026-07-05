@@ -1,0 +1,20 @@
+.app {
+  font-family: system-ui, sans-serif;
+  max-width: 40rem;
+  margin: 4rem auto;
+  padding: 0 1rem;
+  color: var(--text);
+}
+
+.status--ok {
+  color: var(--success);
+}
+
+.status--err {
+  color: var(--danger);
+}
+
+.hint {
+  color: var(--dim);
+  font-size: 0.875rem;
+}
