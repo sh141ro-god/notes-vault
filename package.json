@@ -15,7 +15,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "postbuild": "node scripts/spa-404.mjs"
   },
   "dependencies": {
     "dompurify": "^3.2.3",
