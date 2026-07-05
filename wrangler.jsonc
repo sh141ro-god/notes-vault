@@ -2,7 +2,7 @@
   // Конфиг Cloudflare Worker: приложение (assets) + синхронизация (/v1/*) + KV.
   // Деплой: `npx wrangler deploy` (билд-команда проекта — `npm run build`).
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "notes-vault",
+  "name": "notes-vaults",
   "main": "worker/index.ts",
   "compatibility_date": "2026-07-05",
   "compatibility_flags": ["nodejs_compat"],
