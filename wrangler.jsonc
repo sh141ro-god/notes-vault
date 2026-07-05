@@ -16,7 +16,7 @@
     {
       "binding": "SYNC_KV",
       // ВСТАВЬТЕ сюда id вашего KV-namespace (см. инструкцию ниже).
-      "id": "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+      "id": "ce1997bd75ba4531816caf1730033a1c"
     }
   ]
 }
