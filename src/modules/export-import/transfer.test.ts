@@ -8,17 +8,13 @@ import { loadSodium } from '@core/crypto/sodium.ts'
 import { createSodiumCryptoService } from '@core/crypto/sodiumCryptoService.ts'
 import { createSodiumKeyDerivation } from '@core/crypto/sodiumKeyDerivation.ts'
 import { createIdbRepository } from '@core/storage/idbAdapter.ts'
-import type {
-  Collection,
-  Repository,
-} from '@core/storage/repository.ts'
+import type { Repository } from '@core/storage/repository.ts'
 import {
   decodeVaultExport,
   encodeVaultExport,
 } from '@core/transport/vaultExportCodec.ts'
 import { createVaultService } from '@core/vault/vaultService.ts'
 import type { VaultService } from '@core/vault/vaultState.ts'
-import type { Envelope } from '@core/crypto/envelope.ts'
 import type { VaultExport } from '@core/transport/transportTarget.ts'
 
 import { createNote, type Note } from '../notes/model.ts'
@@ -182,16 +178,18 @@ describe('export/import (DoD)', () => {
       note('Старая B'),
     )
 
-    // репозиторий, падающий на первой записи блоба импорта
-    let putCount = 0
+    // Импорт теперь применяется одной атомарной операцией replaceAll (DATA-01).
+    // Роняем ПЕРВЫЙ вызов (применение импорта); ВТОРОЙ (откат к бэкапу) проходит
+    // штатно — так проверяем и reject, и восстановление исходного волта B.
+    let replaceCount = 0
     const failing: Repository = {
       ...b.repository,
-      putBlob(collection: Collection, id: string, blob: Envelope): Promise<void> {
-        putCount += 1
-        if (putCount === 1) {
+      replaceAll(snapshot): Promise<void> {
+        replaceCount += 1
+        if (replaceCount === 1) {
           return Promise.reject(new Error('IO fail'))
         }
-        return b.repository.putBlob(collection, id, blob)
+        return b.repository.replaceAll(snapshot)
       },
     }
 

@@ -1,8 +1,15 @@
-name: Deploy to GitHub Pages
+# Деплой на GitHub Pages ОТКЛЮЧЁН для автозапуска: проект публикуется на
+# Cloudflare Pages (Cloudflare сам собирает из этого репозитория). Этот workflow
+# оставлен как запасной вариант и запускается ТОЛЬКО вручную (workflow_dispatch),
+# поэтому push'и больше не падают с ошибкой "Ensure GitHub Pages has been enabled".
+#
+# Чтобы вообще убрать его — удалите этот файл на своём ПК (в песочнице удаление
+# файлов заблокировано). Чтобы всё-таки пользоваться GitHub Pages — включите
+# Pages: Settings → Pages → Source: GitHub Actions, затем запустите workflow
+# вручную во вкладке Actions.
+name: Deploy to GitHub Pages (manual)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
