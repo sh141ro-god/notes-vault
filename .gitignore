@@ -31,3 +31,10 @@ vitest.config.ts.timestamp-*.mjs
 _rt.mjs
 _taskcheck.mjs
 _broken_git_delete_me/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
