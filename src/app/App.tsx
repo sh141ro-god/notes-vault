@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { PwaUpdater } from '@core/pwa/PwaUpdater.tsx'
 import { ServicesProvider } from '@core/services/ServicesContext.ts'
 import { AppShell } from '@core/shell/AppShell.tsx'
+import { SyncProvider } from '@core/sync/SyncContext.ts'
 import { VaultStoreProvider } from '@core/vault-ui/VaultContext.ts'
 import { VaultGate } from '@core/vault-ui/VaultGate.tsx'
 import { createVaultStore } from '@core/vault-ui/vaultStore.ts'
@@ -14,8 +15,9 @@ interface AppProps {
 }
 
 /**
- * Корень UI: сервисы ядра доступны модулям через ServicesProvider; гейт волта
- * монтирует оболочку с модулями только после разблокировки.
+ * Корень UI: сервисы ядра доступны модулям через ServicesProvider; контроллер
+ * синхронизации — через SyncProvider; гейт волта монтирует оболочку с модулями
+ * только после разблокировки.
  */
 export function App({ container }: AppProps): React.JSX.Element {
   const store = useMemo(
@@ -37,11 +39,13 @@ export function App({ container }: AppProps): React.JSX.Element {
 
   return (
     <ServicesProvider value={services}>
-      <VaultStoreProvider value={store}>
-        <VaultGate>
-          <AppShell modules={container.modules} />
-        </VaultGate>
-      </VaultStoreProvider>
+      <SyncProvider value={container.sync}>
+        <VaultStoreProvider value={store}>
+          <VaultGate>
+            <AppShell modules={container.modules} />
+          </VaultGate>
+        </VaultStoreProvider>
+      </SyncProvider>
       <PwaUpdater />
     </ServicesProvider>
   )

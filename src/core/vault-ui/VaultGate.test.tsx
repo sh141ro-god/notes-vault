@@ -13,6 +13,9 @@ import { createSodiumKeyDerivation } from '@core/crypto/sodiumKeyDerivation.ts'
 import { createIdbRepository } from '@core/storage/idbAdapter.ts'
 import { createVaultService } from '@core/vault/vaultService.ts'
 
+import { SyncProvider } from '@core/sync/SyncContext.ts'
+import type { SyncController } from '@core/sync/syncController.ts'
+
 import { VaultStoreProvider } from './VaultContext.ts'
 import { VaultGate } from './VaultGate.tsx'
 import { createVaultStore, type VaultStore } from './vaultStore.ts'
@@ -53,13 +56,32 @@ async function buildVault(dbName: string): Promise<{
   }
 }
 
+const fakeSync: SyncController = {
+  getState: () => ({
+    status: 'off',
+    code: undefined,
+    lastSyncAt: undefined,
+    error: undefined,
+  }),
+  subscribe: () => () => undefined,
+  enable: () => Promise.resolve('TEST-CODE'),
+  enableWithCode: () => Promise.resolve(),
+  resume: () => Promise.resolve(),
+  bootstrapWithCode: () => Promise.resolve(),
+  finishJoin: () => Promise.resolve(),
+  syncNow: () => Promise.resolve(),
+  disable: () => Promise.resolve(),
+}
+
 function renderGate(store: VaultStore): void {
   render(
-    <VaultStoreProvider value={store}>
-      <VaultGate>
-        <div>APP_CONTENT</div>
-      </VaultGate>
-    </VaultStoreProvider>,
+    <SyncProvider value={fakeSync}>
+      <VaultStoreProvider value={store}>
+        <VaultGate>
+          <div>APP_CONTENT</div>
+        </VaultGate>
+      </VaultStoreProvider>
+    </SyncProvider>,
   )
 }
 

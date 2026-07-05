@@ -1,0 +1,175 @@
+import { describe, expect, it } from 'vitest'
+
+import type { CryptoService } from '@core/crypto/cryptoService.ts'
+import type { Envelope } from '@core/crypto/envelope.ts'
+import type {
+  Repository,
+  RepositorySnapshot,
+} from '@core/storage/repository.ts'
+import type { VaultService } from '@core/vault/vaultState.ts'
+
+import { createNote } from '../../modules/notes/model.ts'
+import { createNoteRepository } from '../../modules/notes/noteRepository.ts'
+import { createSyncService } from './syncService.ts'
+import { winner, type SyncItem } from './syncEngine.ts'
+import type { SyncTarget } from './syncTarget.ts'
+
+const KEY = new Uint8Array(32).fill(7)
+
+/** Фейковая крипта: identity (ct = открытый текст) — достаточно для проверки потока. */
+const crypto: CryptoService = {
+  randomKey: () => new Uint8Array(32).fill(7),
+  randomBytes: (n) => new Uint8Array(n).fill(1),
+  encrypt: (_key, plaintext) => ({
+    v: 1,
+    alg: 'xchacha20poly1305',
+    nonce: new Uint8Array(24),
+    ct: plaintext.slice(),
+  }),
+  decrypt: (_key, env) => env.ct.slice(),
+  wipe: (bytes) => bytes.fill(0),
+}
+
+const vault = { requireKey: () => KEY } as unknown as VaultService
+
+function makeRepo(): Repository {
+  const blobs = new Map<string, Envelope>()
+  const manifests = new Map<string, Envelope>()
+  let meta: RepositorySnapshot['meta'] | undefined
+  const k = (c: string, id: string): string => `${c}/${id}`
+  return {
+    putBlob: (c, id, b) => {
+      blobs.set(k(c, id), b)
+      return Promise.resolve()
+    },
+    getBlob: (c, id) => Promise.resolve(blobs.get(k(c, id))),
+    deleteBlob: (c, id) => {
+      blobs.delete(k(c, id))
+      return Promise.resolve()
+    },
+    listBlobIds: (c) =>
+      Promise.resolve(
+        [...blobs.keys()].filter((x) => x.startsWith(`${c}/`)).map((x) => x.slice(c.length + 1)),
+      ),
+    listCollections: () =>
+      Promise.resolve([...new Set([...blobs.keys()].map((x) => x.split('/')[0]!))]),
+    putManifest: (c, b) => {
+      manifests.set(c, b)
+      return Promise.resolve()
+    },
+    getManifest: (c) => Promise.resolve(manifests.get(c)),
+    writeBlobWithManifest: (c, id, b, m) => {
+      blobs.set(k(c, id), b)
+      manifests.set(c, m)
+      return Promise.resolve()
+    },
+    deleteBlobWithManifest: (c, id, m) => {
+      blobs.delete(k(c, id))
+      manifests.set(c, m)
+      return Promise.resolve()
+    },
+    readVaultMeta: () => Promise.resolve(meta),
+    writeVaultMeta: (m) => {
+      meta = m
+      return Promise.resolve()
+    },
+    clearAll: () => {
+      blobs.clear()
+      manifests.clear()
+      return Promise.resolve()
+    },
+    replaceAll: (s) => {
+      blobs.clear()
+      manifests.clear()
+      meta = s.meta
+      return Promise.resolve()
+    },
+    close: () => Promise.resolve(),
+  }
+}
+
+/** In-memory «сервер» синхронизации: две корзины LWW, общий для устройств. */
+function makeServer(): SyncTarget {
+  const items = new Map<string, SyncItem>()
+  let meta: string | null = null
+  return {
+    pull: () => Promise.resolve({ meta, items: [...items.values()] }),
+    push: (m, incoming) => {
+      for (const inc of incoming) {
+        const key = `${inc.collection}/${inc.id}`
+        const ex = items.get(key)
+        if (!ex || winner(ex, inc) !== ex) {
+          items.set(key, inc)
+        }
+      }
+      if (m !== null) {
+        meta = m
+      }
+      return Promise.resolve({ applied: incoming.length })
+    },
+  }
+}
+
+function device(server: SyncTarget): {
+  notes: ReturnType<typeof createNoteRepository>
+  sync: ReturnType<typeof createSyncService>
+} {
+  const repository = makeRepo()
+  const notes = createNoteRepository({ repository, crypto, vault })
+  const sync = createSyncService({
+    repository,
+    crypto,
+    vault,
+    collections: [{ name: 'notes', reindex: () => notes.reindex().then(() => undefined) }],
+    target: server,
+  })
+  return { notes, sync }
+}
+
+describe('syncService (два устройства через общий сервер)', () => {
+  it('заметка с A появляется на B', async () => {
+    const server = makeServer()
+    const a = device(server)
+    const b = device(server)
+
+    const note = createNote()
+    await a.notes.save({ ...note, title: 'Привет с A' })
+    await a.sync.syncNow()
+
+    await b.sync.bootstrap()
+    await b.sync.syncNow()
+
+    const titlesB = (await b.notes.listIndex()).map((e) => e.title)
+    expect(titlesB).toEqual(['Привет с A'])
+  })
+
+  it('правка на B доезжает обратно на A (сходимость)', async () => {
+    const server = makeServer()
+    const a = device(server)
+    const b = device(server)
+
+    const note = createNote()
+    await a.notes.save({ ...note, title: 'v1' })
+    await a.sync.syncNow()
+    await b.sync.bootstrap()
+    await b.sync.syncNow()
+
+    const onB = await b.notes.get(note.id)
+    await b.notes.save({ ...onB!, title: 'v2', updatedAt: Date.now() + 5000 })
+    await b.sync.syncNow()
+    await a.sync.syncNow()
+
+    const onA = await a.notes.get(note.id)
+    expect(onA?.title).toBe('v2')
+  })
+
+  it('идемпотентность: повторный syncNow ничего не применяет и не шлёт', async () => {
+    const server = makeServer()
+    const a = device(server)
+    await a.notes.save({ ...createNote(), title: 'x' })
+    await a.sync.syncNow()
+    const second = await a.sync.syncNow()
+    expect(second.appliedLocal).toBe(0)
+    expect(second.pushed).toBe(0)
+  })
+})

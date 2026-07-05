@@ -12,30 +12,29 @@ import { loadModules } from '@core/registry/moduleRegistry.ts'
 import type { ModuleContract } from '@core/registry/moduleContract.ts'
 import { createIdbRepository } from '@core/storage/idbAdapter.ts'
 import type { Repository } from '@core/storage/repository.ts'
+import { createTagRepository } from '@core/tags/tagRepository.ts'
+import { createSyncController } from '@core/sync/syncController.ts'
+import type { SyncController } from '@core/sync/syncController.ts'
 import { createVaultService } from '@core/vault/vaultService.ts'
 import type { VaultService } from '@core/vault/vaultState.ts'
+
+import { createNoteRepository } from '@modules/notes/noteRepository.ts'
+import { createTaskRepository } from '@modules/tasks/taskRepository.ts'
 
 /**
  * Composition root.
  *
  * Единственное место, где конкретные адаптеры подставляются под порты ядра.
- * Подключено: M1 CORE-crypto, M2 CORE-storage, M3 CORE-vault. Дальше:
- *   - registry:   ModuleRegistry   (M4)
- *   - transport:  TransportTarget  (M7, file-адаптер)
  */
 
 export interface AppContainer {
-  /** Инициализированный экземпляр libsodium (готов после `loadSodium()`). */
   readonly sodium: Sodium
-  /** Симметричная крипта (XChaCha20-Poly1305). */
   readonly crypto: CryptoService
-  /** Вывод ключей (Argon2id) и генерация recovery-кода. */
   readonly keyDerivation: KeyDerivation
-  /** Персистентность зашифрованных данных и VaultMeta (IndexedDB). */
   readonly repository: Repository
-  /** Жизненный цикл секрета и иерархия ключей. */
   readonly vault: VaultService
-  /** Модули-фичи, собранные реестром из контрактов (build-time). */
+  /** Контроллер синхронизации между устройствами (E2E, сервер хранит шифртекст). */
+  readonly sync: SyncController
   readonly modules: ModuleContract[]
 }
 
@@ -45,8 +44,6 @@ export interface ContainerDeps {
 
 export function createContainer(deps: ContainerDeps): AppContainer {
   const crypto = createSodiumCryptoService(deps.sodium)
-  // В браузере Argon2id уходит в Web Worker (UI не блокируется); в Node/без
-  // Worker используется прямой синхронный адаптер.
   const keyDerivation =
     typeof Worker === 'undefined'
       ? createSodiumKeyDerivation(deps.sodium)
@@ -60,12 +57,30 @@ export function createContainer(deps: ContainerDeps): AppContainer {
     kdfPin: recommendedPinKdfParams(deps.sodium),
   })
 
+  // Коллекции под синхронизацию: те же репозитории, что и у модулей, с их reindex
+  // (перестроить индекс после применения удалённых изменений).
+  const noteRepo = createNoteRepository({ repository, crypto, vault })
+  const taskRepo = createTaskRepository({ repository, crypto, vault })
+  const tagRepo = createTagRepository({ repository, crypto, vault })
+  const sync = createSyncController({
+    repository,
+    crypto,
+    vault,
+    sodium: deps.sodium,
+    collections: [
+      { name: 'notes', reindex: () => noteRepo.reindex().then(() => undefined) },
+      { name: 'tasks', reindex: () => taskRepo.reindex().then(() => undefined) },
+      { name: 'tags', reindex: () => tagRepo.reindex().then(() => undefined) },
+    ],
+  })
+
   return {
     sodium: deps.sodium,
     crypto,
     keyDerivation,
     repository,
     vault,
+    sync,
     modules: loadModules(),
   }
 }
