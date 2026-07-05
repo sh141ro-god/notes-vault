@@ -1,0 +1,22 @@
+{
+  // Конфиг Cloudflare Worker: приложение (assets) + синхронизация (/v1/*) + KV.
+  // Деплой: `npx wrangler deploy` (билд-команда проекта — `npm run build`).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "notes-vault",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Неизвестный маршрут → index.html (SPA), react-router разберёт URL сам.
+    "not_found_handling": "single-page-application"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "SYNC_KV",
+      // ВСТАВЬТЕ сюда id вашего KV-namespace (см. инструкцию ниже).
+      "id": "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+    }
+  ]
+}
