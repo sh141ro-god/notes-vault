@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 // GitHub Pages: приложение раздаётся из подпапки репозитория.
 // Переопределяется переменной окружения BASE_PATH при деплое.
 const base = process.env.BASE_PATH ?? '/'
@@ -73,50 +75,46 @@ export default defineConfig({
       '@app': fileURLToPath(new URL('./src/app', import.meta.url)),
     },
   },
-  plugins: [
-    react(),
-    prodCspPlugin(),
-    VitePWA({
-      registerType: 'prompt',
-      manifest: {
-        name: 'Notes Vault',
-        short_name: 'Notes',
-        description: 'Приватные зашифрованные заметки, офлайн-first.',
-        lang: 'ru',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
-        display: 'standalone',
-        orientation: 'portrait',
-        icons: [
-          {
-            src: 'pwa-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: 'pwa-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: 'maskable-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-        ],
-      },
-      workbox: {
-        // Прекэш кода/оболочки/иконок для офлайна (libsodium-WASM инлайнится в JS).
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2,wasm,webmanifest}'],
-        // SPA-офлайн: неизвестный маршрут отдаём из index.html.
-        navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/(?:registerSW\.js|sw\.js|workbox-)/],
-        cleanupOutdatedCaches: true,
-        clientsClaim: true,
-      },
-    }),
-  ],
+  plugins: [react(), prodCspPlugin(), VitePWA({
+    registerType: 'prompt',
+    manifest: {
+      name: 'Notes Vault',
+      short_name: 'Notes',
+      description: 'Приватные зашифрованные заметки, офлайн-first.',
+      lang: 'ru',
+      theme_color: '#0f172a',
+      background_color: '#0f172a',
+      display: 'standalone',
+      orientation: 'portrait',
+      icons: [
+        {
+          src: 'pwa-192.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'any',
+        },
+        {
+          src: 'pwa-512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'any',
+        },
+        {
+          src: 'maskable-512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
+      ],
+    },
+    workbox: {
+      // Прекэш кода/оболочки/иконок для офлайна (libsodium-WASM инлайнится в JS).
+      globPatterns: ['**/*.{js,css,html,svg,png,woff2,wasm,webmanifest}'],
+      // SPA-офлайн: неизвестный маршрут отдаём из index.html.
+      navigateFallback: 'index.html',
+      navigateFallbackDenylist: [/^\/(?:registerSW\.js|sw\.js|workbox-)/],
+      cleanupOutdatedCaches: true,
+      clientsClaim: true,
+    },
+  }), cloudflare()],
 })
