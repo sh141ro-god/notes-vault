@@ -222,7 +222,9 @@ export function createCollectionRepository<T extends CollectionEntity>(
             entries: manifest.entries.filter((entry) => entry.id !== id),
           }),
         )
-        await repository.deleteBlobWithManifest(collection, id, manifestEnv)
+        // Момент удаления — сейчас: в LWW-слиянии надгробие должно побеждать
+        // все более ранние правки записи на других устройствах.
+        await repository.deleteBlobWithManifest(collection, id, manifestEnv, Date.now())
       })
     },
   }

@@ -26,6 +26,19 @@ export function assertCollection(collection: string): void {
   }
 }
 
+/**
+ * Надгробие: след удалённой записи. Нужен, чтобы синхронизация РАСПРОСТРАНЯЛА
+ * удаления (иначе сервер «воскрешает» запись при следующем pull). Хранится
+ * локально бессрочно: дёшево и защищает от воскрешения устройствами, долго
+ * бывшими офлайн (на сервере — TTL, см. syncStore).
+ */
+export interface TombstoneRecord {
+  collection: Collection
+  id: string
+  /** Момент удаления (мс) — участвует в LWW наравне с updatedAt записей. */
+  updatedAt: number
+}
+
 /** Снимок одной коллекции (зашифрованный манифест + блобы) для replaceAll. */
 export interface RepositoryCollectionSnapshot {
   name: Collection
@@ -55,29 +68,45 @@ export interface Repository {
   putManifest(collection: Collection, blob: Envelope): Promise<void>
   getManifest(collection: Collection): Promise<Envelope | undefined>
 
-  /** Атомарно (одна транзакция) записывает блоб и манифест коллекции. */
+  /**
+   * Атомарно (одна транзакция) записывает блоб и манифест коллекции; попутно
+   * убирает надгробие записи (пересоздание отменяет удаление).
+   */
   writeBlobWithManifest(
     collection: Collection,
     id: string,
     blob: Envelope,
     manifest: Envelope,
   ): Promise<void>
-  /** Атомарно (одна транзакция) удаляет блоб и записывает манифест коллекции. */
+  /**
+   * Атомарно (одна транзакция) удаляет блоб, записывает манифест коллекции и
+   * ставит надгробие с моментом удаления `tombstoneAt` (для распространения
+   * удаления через sync).
+   */
   deleteBlobWithManifest(
     collection: Collection,
     id: string,
     manifest: Envelope,
+    tombstoneAt: number,
   ): Promise<void>
+
+  /** Все надгробия волта (для gather в синхронизации). */
+  listTombstones(): Promise<TombstoneRecord[]>
+  /** Пишет/обновляет надгробие (применение удаления, пришедшего по sync). */
+  putTombstone(tombstone: TombstoneRecord): Promise<void>
+  /** Убирает надгробие (запись воскрешена более новой правкой с другого устройства). */
+  deleteTombstone(collection: Collection, id: string): Promise<void>
 
   readVaultMeta(): Promise<VaultMeta | undefined>
   writeVaultMeta(meta: VaultMeta): Promise<void>
 
-  /** Стирает все блобы и манифесты (VaultMeta не трогает) — для импорта/сброса. */
+  /** Стирает все блобы, манифесты и надгробия (VaultMeta не трогает) — для импорта/сброса. */
   clearAll(): Promise<void>
 
   /**
    * Атомарно (одна транзакция по всем сторам) заменяет ВЕСЬ волт снимком: очищает
-   * blobs/manifests, перезаписывает vaultMeta и раскладывает коллекции. Либо
+   * blobs/manifests/tombstones, перезаписывает vaultMeta и раскладывает коллекции.
+   * Надгробия сбрасываются: импортированный снимок — авторитетное состояние. Либо
    * применяется целиком, либо не применяется ничего — крах посреди импорта не
    * оставляет волт в полустёртом состоянии (DATA-01).
    */

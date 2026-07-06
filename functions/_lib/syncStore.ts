@@ -10,7 +10,11 @@
 
 export interface KvLike {
   get(key: string): Promise<string | null>
-  put(key: string, value: string): Promise<void>
+  put(
+    key: string,
+    value: string,
+    options?: { expirationTtl?: number },
+  ): Promise<void>
   delete(key: string): Promise<void>
   list(options: {
     prefix: string
@@ -25,6 +29,14 @@ export interface SyncItem {
   deleted: boolean
   ct?: string
 }
+
+/**
+ * TTL надгробий на сервере: 90 дней. Локальные надгробия устройств живут
+ * бессрочно, поэтому даже после истечения серверного устройство, знавшее об
+ * удалении, при следующем sync увидит «воскресшую» копию и повторно её удалит
+ * (самопочинка). Живые записи хранятся без TTL.
+ */
+export const TOMBSTONE_TTL_SECONDS = 90 * 24 * 60 * 60
 
 const textEncoder = new TextEncoder()
 
@@ -129,7 +141,13 @@ export async function push(
         continue
       }
     }
-    await kv.put(key, JSON.stringify(incoming))
+    if (incoming.deleted) {
+      await kv.put(key, JSON.stringify(incoming), {
+        expirationTtl: TOMBSTONE_TTL_SECONDS,
+      })
+    } else {
+      await kv.put(key, JSON.stringify(incoming))
+    }
     applied += 1
   }
   if (meta !== undefined && meta !== null) {

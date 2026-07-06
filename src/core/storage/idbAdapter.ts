@@ -14,10 +14,17 @@ import {
   type Collection,
   type Repository,
   type RepositorySnapshot,
+  type TombstoneRecord,
 } from './repository.ts'
-import { EnvelopeSchema, type VaultMeta, VaultMetaSchema } from './schemas.ts'
+import {
+  EnvelopeSchema,
+  type TombstoneValue,
+  TombstoneValueSchema,
+  type VaultMeta,
+  VaultMetaSchema,
+} from './schemas.ts'
 
-const DB_VERSION = 2
+const DB_VERSION = 3
 const DEFAULT_DB_NAME = 'notes-vault'
 const SINGLETON_KEY = 'current'
 
@@ -25,6 +32,8 @@ interface VaultDBSchema extends DBSchema {
   blobs: { key: [string, string]; value: Envelope } // [collection, id]
   manifests: { key: string; value: Envelope } // key = collection
   vaultMeta: { key: string; value: VaultMeta }
+  // v3: надгробия удалённых записей — [collection, id] → { updatedAt }.
+  tombstones: { key: [string, string]; value: TombstoneValue }
 }
 
 /** Схема с легаси-сторами (v1) — нужна только для миграции в upgrade(). */
@@ -98,6 +107,10 @@ export function createIdbRepository(
         if (!db.objectStoreNames.contains('vaultMeta')) {
           db.createObjectStore('vaultMeta')
         }
+        // v2 → v3: новый пустой стор надгробий; данные не мигрируются.
+        if (!db.objectStoreNames.contains('tombstones')) {
+          db.createObjectStore('tombstones')
+        }
         await migrateV1ToV2(
           db as unknown as IDBPDatabase<MigrationDBSchema>,
           tx as unknown as IDBPTransaction<
@@ -167,10 +180,15 @@ export function createIdbRepository(
       manifest: Envelope,
     ) {
       assertCollection(collection)
-      const tx = (await getDb()).transaction(['blobs', 'manifests'], 'readwrite')
+      const tx = (await getDb()).transaction(
+        ['blobs', 'manifests', 'tombstones'],
+        'readwrite',
+      )
       await Promise.all([
         tx.objectStore('blobs').put(blob, [collection, id]),
         tx.objectStore('manifests').put(manifest, collection),
+        // Пересоздание записи отменяет её удаление — в той же транзакции.
+        tx.objectStore('tombstones').delete([collection, id]),
         tx.done,
       ])
     },
@@ -179,14 +197,59 @@ export function createIdbRepository(
       collection: Collection,
       id: string,
       manifest: Envelope,
+      tombstoneAt: number,
     ) {
       assertCollection(collection)
-      const tx = (await getDb()).transaction(['blobs', 'manifests'], 'readwrite')
+      const tx = (await getDb()).transaction(
+        ['blobs', 'manifests', 'tombstones'],
+        'readwrite',
+      )
       await Promise.all([
         tx.objectStore('blobs').delete([collection, id]),
         tx.objectStore('manifests').put(manifest, collection),
+        // Надгробие — атомарно с удалением: sync узнает об удалении даже при
+        // крахе сразу после транзакции.
+        tx.objectStore('tombstones').put({ updatedAt: tombstoneAt }, [collection, id]),
         tx.done,
       ])
+    },
+
+    async listTombstones() {
+      const db = await getDb()
+      const keys = await db.getAllKeys('tombstones')
+      const values = await db.getAll('tombstones')
+      const records: TombstoneRecord[] = []
+      for (let i = 0; i < keys.length; i += 1) {
+        const key = keys[i]
+        const value = values[i]
+        if (key === undefined || value === undefined) {
+          continue
+        }
+        // IndexedDB — недоверенная граница: валидируем форму, битое пропускаем.
+        const parsed = TombstoneValueSchema.safeParse(value)
+        if (parsed.success) {
+          records.push({
+            collection: key[0],
+            id: key[1],
+            updatedAt: parsed.data.updatedAt,
+          })
+        }
+      }
+      return records
+    },
+
+    async putTombstone(tombstone: TombstoneRecord) {
+      assertCollection(tombstone.collection)
+      await (await getDb()).put(
+        'tombstones',
+        { updatedAt: tombstone.updatedAt },
+        [tombstone.collection, tombstone.id],
+      )
+    },
+
+    async deleteTombstone(collection: Collection, id: string) {
+      assertCollection(collection)
+      await (await getDb()).delete('tombstones', [collection, id])
     },
 
     async readVaultMeta() {
@@ -202,6 +265,7 @@ export function createIdbRepository(
       const db = await getDb()
       await db.clear('blobs')
       await db.clear('manifests')
+      await db.clear('tombstones')
     },
 
     async replaceAll(snapshot: RepositorySnapshot) {
@@ -211,13 +275,16 @@ export function createIdbRepository(
       // Всё одной транзакцией по трём сторам: очистка + запись meta + раскладка
       // коллекций. Крах посреди — откат транзакции целиком (DATA-01).
       const tx = (await getDb()).transaction(
-        ['blobs', 'manifests', 'vaultMeta'],
+        ['blobs', 'manifests', 'vaultMeta', 'tombstones'],
         'readwrite',
       )
       const blobs = tx.objectStore('blobs')
       const manifests = tx.objectStore('manifests')
       await blobs.clear()
       await manifests.clear()
+      // Импортированный снимок — авторитетное состояние: старые надгробия
+      // не должны «доудалять» записи из него.
+      await tx.objectStore('tombstones').clear()
       await tx.objectStore('vaultMeta').put(snapshot.meta, SINGLETON_KEY)
       for (const collection of snapshot.collections) {
         if (collection.manifest) {

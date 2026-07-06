@@ -82,6 +82,19 @@ export function createSyncService(deps: SyncServiceDeps): SyncService {
         })
       }
     }
+    // Надгробия синхронизируемых коллекций — как элементы deleted (без ct):
+    // только так удаление доезжает до сервера и других устройств.
+    const syncedNames = new Set<string>(collections.map((col) => col.name))
+    for (const tomb of await repository.listTombstones()) {
+      if (syncedNames.has(tomb.collection)) {
+        items.push({
+          collection: tomb.collection,
+          id: tomb.id,
+          updatedAt: tomb.updatedAt,
+          deleted: true,
+        })
+      }
+    }
     const storedMeta = await repository.readVaultMeta()
     return { items, meta: storedMeta ? metaToWire(storedMeta) : null }
   }
@@ -91,8 +104,17 @@ export function createSyncService(deps: SyncServiceDeps): SyncService {
     for (const item of applyLocal) {
       if (item.deleted) {
         await repository.deleteBlob(item.collection, item.id)
+        // Локальное надгробие: чтобы это устройство само дальше распространяло
+        // удаление (сервер чистит свои по TTL, локальные живут бессрочно).
+        await repository.putTombstone({
+          collection: item.collection,
+          id: item.id,
+          updatedAt: item.updatedAt,
+        })
       } else if (item.ct !== undefined) {
         await repository.putBlob(item.collection, item.id, wireToEnvelope(item.ct))
+        // Более новая правка воскресила запись — надгробие больше не актуально.
+        await repository.deleteTombstone(item.collection, item.id)
       }
       touched.add(item.collection)
     }

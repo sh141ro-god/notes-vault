@@ -61,6 +61,17 @@ export const VaultMetaSchema = z.object({
 export type VaultMeta = z.infer<typeof VaultMetaSchema>
 
 /**
+ * Значение надгробия в сторе tombstones (ключ — [collection, id]).
+ * Метаданные удаления (id, момент) открыты — как и прочие принятые моделью
+ * угроз метаданные; содержимого у удалённой записи нет.
+ */
+export const TombstoneValueSchema = z.object({
+  updatedAt: z.number().int().nonnegative(),
+})
+
+export type TombstoneValue = z.infer<typeof TombstoneValueSchema>
+
+/**
  * Compile-time гарантия совместимости zod-схем с крипто-типами (CONN-01).
  * Форма Envelope/KdfParams описана и здесь (schema), и в crypto (type). Эти
  * проверки ломают сборку, если контракты разойдутся (например, в crypto

@@ -104,7 +104,7 @@ describe('idbAdapter — блобы по коллекциям', () => {
       makeEnvelope(1),
       makeEnvelope(2),
     )
-    await repo.deleteBlobWithManifest('notes', NOTE_A, makeEnvelope(3))
+    await repo.deleteBlobWithManifest('notes', NOTE_A, makeEnvelope(3), 123)
     expect(await repo.getBlob('notes', NOTE_A)).toBeUndefined()
     expect(await repo.getManifest('notes')).toBeDefined()
   })
@@ -121,6 +121,41 @@ interface V1Schema extends DBSchema {
   manifest: { key: string; value: Envelope }
   vaultMeta: { key: string; value: VaultMeta }
 }
+
+describe('idbAdapter — надгробия (v3)', () => {
+  it('deleteBlobWithManifest ставит надгробие атомарно с удалением', async () => {
+    await repo.writeBlobWithManifest('notes', NOTE_A, makeEnvelope(1), makeEnvelope(2))
+    await repo.deleteBlobWithManifest('notes', NOTE_A, makeEnvelope(3), 1_800_000_000_000)
+    expect(await repo.listTombstones()).toEqual([
+      { collection: 'notes', id: NOTE_A, updatedAt: 1_800_000_000_000 },
+    ])
+  })
+
+  it('writeBlobWithManifest снимает надгробие (пересоздание отменяет удаление)', async () => {
+    await repo.deleteBlobWithManifest('notes', NOTE_A, makeEnvelope(1), 100)
+    await repo.writeBlobWithManifest('notes', NOTE_A, makeEnvelope(2), makeEnvelope(3))
+    expect(await repo.listTombstones()).toEqual([])
+  })
+
+  it('putTombstone/deleteTombstone управляют надгробием напрямую (для sync)', async () => {
+    await repo.putTombstone({ collection: 'tasks', id: NOTE_B, updatedAt: 42 })
+    expect(await repo.listTombstones()).toEqual([
+      { collection: 'tasks', id: NOTE_B, updatedAt: 42 },
+    ])
+    await repo.deleteTombstone('tasks', NOTE_B)
+    expect(await repo.listTombstones()).toEqual([])
+  })
+
+  it('clearAll и replaceAll стирают надгробия (импорт — авторитетный снимок)', async () => {
+    await repo.putTombstone({ collection: 'notes', id: NOTE_A, updatedAt: 1 })
+    await repo.clearAll()
+    expect(await repo.listTombstones()).toEqual([])
+
+    await repo.putTombstone({ collection: 'notes', id: NOTE_B, updatedAt: 2 })
+    await repo.replaceAll({ meta: makeVaultMeta(), collections: [] })
+    expect(await repo.listTombstones()).toEqual([])
+  })
+})
 
 describe('idbAdapter — миграция v1 → v2', () => {
   it('переносит заметки, манифест и VaultMeta из старой схемы', async () => {

@@ -1,15 +1,28 @@
 import { describe, expect, it } from 'vitest'
 
-import { authorize, pull, push, type KvLike, type SyncItem } from './syncStore.ts'
+import {
+  authorize,
+  pull,
+  push,
+  TOMBSTONE_TTL_SECONDS,
+  type KvLike,
+  type SyncItem,
+} from './syncStore.ts'
 
 /** In-memory KV, совместимый с интерфейсом Cloudflare KV (get/put/delete/list). */
-function makeKv(): KvLike & { dump: () => Map<string, string> } {
+function makeKv(): KvLike & {
+  dump: () => Map<string, string>
+  ttls: Map<string, number | undefined>
+} {
   const map = new Map<string, string>()
+  const ttls = new Map<string, number | undefined>()
   return {
     dump: () => map,
+    ttls,
     get: (k) => Promise.resolve(map.has(k) ? (map.get(k) as string) : null),
-    put: (k, v) => {
+    put: (k, v, options) => {
       map.set(k, v)
+      ttls.set(k, options?.expirationTtl)
       return Promise.resolve()
     },
     delete: (k) => {
@@ -83,6 +96,17 @@ describe('syncStore.push/pull (LWW)', () => {
     expect(items[0]?.deleted).toBe(true)
     expect(items[0]?.ct).toBeUndefined()
   })
+  it('надгробие пишется с TTL, живая запись — без (самопочинка при истечении)', async () => {
+    const kv = makeKv()
+    await push(kv, 'B', null, [it0('a', 1, 'CT')])
+    expect(kv.ttls.get('B:item:notes/a')).toBeUndefined()
+    await push(kv, 'B', null, [it0('a', 2, undefined, true)])
+    expect(kv.ttls.get('B:item:notes/a')).toBe(TOMBSTONE_TTL_SECONDS)
+    // Воскрешение более новой правкой снимает TTL.
+    await push(kv, 'B', null, [it0('a', 3, 'BACK')])
+    expect(kv.ttls.get('B:item:notes/a')).toBeUndefined()
+  })
+
   it('корзины изолированы друг от друга', async () => {
     const kv = makeKv()
     await push(kv, 'B1', null, [it0('a', 1, 'ONE')])
