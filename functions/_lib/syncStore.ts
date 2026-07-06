@@ -72,6 +72,9 @@ function authKey(syncId: string): string {
 function metaKey(syncId: string): string {
   return `${syncId}:meta`
 }
+function verKey(syncId: string): string {
+  return `${syncId}:ver`
+}
 function itemKey(syncId: string, collection: string, id: string): string {
   return `${syncId}:item:${collection}/${id}`
 }
@@ -98,11 +101,24 @@ export async function authorize(
   return stored === presented
 }
 
-/** Полная выгрузка корзины: открытая VaultMeta + все элементы. */
+/**
+ * Версия корзины — дешёвая проверка «есть ли новое» (1 чтение KV вместо полного
+ * pull с N+1 чтениями). Меняется ТОЛЬКО когда push реально что-то изменил.
+ * Значение непрозрачно, клиент сравнивает на равенство.
+ */
+export function version(kv: KvLike, syncId: string): Promise<string | null> {
+  return kv.get(verKey(syncId))
+}
+
+function nextVer(): string {
+  return `${String(Date.now())}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+/** Полная выгрузка корзины: открытая VaultMeta + все элементы + версия. */
 export async function pull(
   kv: KvLike,
   syncId: string,
-): Promise<{ meta: string | null; items: SyncItem[] }> {
+): Promise<{ meta: string | null; items: SyncItem[]; ver: string | null }> {
   const meta = await kv.get(metaKey(syncId))
   const items: SyncItem[] = []
   const prefix = `${syncId}:item:`
@@ -117,7 +133,7 @@ export async function pull(
     }
     cursor = page.list_complete ? undefined : page.cursor
   } while (cursor)
-  return { meta, items }
+  return { meta, items, ver: await kv.get(verKey(syncId)) }
 }
 
 /**
@@ -130,7 +146,7 @@ export async function push(
   syncId: string,
   meta: string | null | undefined,
   items: SyncItem[],
-): Promise<{ applied: number }> {
+): Promise<{ applied: number; ver: string | null }> {
   let applied = 0
   for (const incoming of items) {
     const key = itemKey(syncId, incoming.collection, incoming.id)
@@ -150,8 +166,20 @@ export async function push(
     }
     applied += 1
   }
+  let metaChanged = false
   if (meta !== undefined && meta !== null) {
-    await kv.put(metaKey(syncId), meta)
+    // Клиент шлёт meta каждый push — пишем (и трогаем версию) только при
+    // реальном изменении, иначе версия «дребезжит» и провоцирует лишние pull.
+    const current = await kv.get(metaKey(syncId))
+    if (current !== meta) {
+      await kv.put(metaKey(syncId), meta)
+      metaChanged = true
+    }
   }
-  return { applied }
+  let ver = await kv.get(verKey(syncId))
+  if (applied > 0 || metaChanged || ver === null) {
+    ver = nextVer()
+    await kv.put(verKey(syncId), ver)
+  }
+  return { applied, ver }
 }

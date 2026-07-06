@@ -1,5 +1,5 @@
 import type { SyncItem } from './syncEngine.ts'
-import type { SyncPullResult, SyncTarget } from './syncTarget.ts'
+import type { SyncPullResult, SyncPushResult, SyncTarget } from './syncTarget.ts'
 
 export interface HttpSyncTargetDeps {
   /** База API. Пусто = тот же origin (Cloudflare Pages Functions на /v1/*). */
@@ -38,12 +38,18 @@ export function createHttpSyncTarget(deps: HttpSyncTargetDeps): SyncTarget {
     pull(): Promise<SyncPullResult> {
       return post<SyncPullResult>('/v1/pull', { syncId: deps.syncId })
     },
-    push(meta: string | null, items: SyncItem[]): Promise<{ applied: number }> {
-      return post<{ applied: number }>('/v1/push', {
+    push(meta: string | null, items: SyncItem[]): Promise<SyncPushResult> {
+      return post<SyncPushResult>('/v1/push', {
         syncId: deps.syncId,
         meta,
         items,
       })
+    },
+    async version(): Promise<string | null> {
+      const res = await post<{ ver: string | null }>('/v1/ver', {
+        syncId: deps.syncId,
+      })
+      return res.ver
     },
   }
 }

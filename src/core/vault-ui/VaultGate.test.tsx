@@ -64,6 +64,8 @@ const fakeSync: SyncController = {
     error: undefined,
   }),
   subscribe: () => () => undefined,
+  notifyLocalChange: () => undefined,
+  tick: () => Promise.resolve(),
   enable: () => Promise.resolve('TEST-CODE'),
   enableWithCode: () => Promise.resolve(),
   resume: () => Promise.resolve(),

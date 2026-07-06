@@ -12,6 +12,7 @@ import { loadModules } from '@core/registry/moduleRegistry.ts'
 import type { ModuleContract } from '@core/registry/moduleContract.ts'
 import { createIdbRepository } from '@core/storage/idbAdapter.ts'
 import type { Repository } from '@core/storage/repository.ts'
+import { withWriteNotifier } from '@core/storage/writeNotifier.ts'
 import { createTagRepository } from '@core/tags/tagRepository.ts'
 import { createSyncController } from '@core/sync/syncController.ts'
 import type { SyncController } from '@core/sync/syncController.ts'
@@ -48,7 +49,12 @@ export function createContainer(deps: ContainerDeps): AppContainer {
     typeof Worker === 'undefined'
       ? createSodiumKeyDerivation(deps.sodium)
       : createWorkerKeyDerivation(deps.sodium)
-  const repository = createIdbRepository()
+  // Мост «запись → sync»: контроллер создаётся позже репозитория, поэтому
+  // уведомление идёт через переприсваиваемую ссылку (заполняется ниже).
+  const onLocalWrite: { current?: () => void } = {}
+  const repository = withWriteNotifier(createIdbRepository(), () => {
+    onLocalWrite.current?.()
+  })
   const vault = createVaultService({
     crypto,
     keyDerivation,
@@ -73,6 +79,10 @@ export function createContainer(deps: ContainerDeps): AppContainer {
       { name: 'tags', reindex: () => tagRepo.reindex().then(() => undefined) },
     ],
   })
+
+  onLocalWrite.current = () => {
+    sync.notifyLocalChange()
+  }
 
   return {
     sodium: deps.sodium,

@@ -8,7 +8,8 @@ import { Settings } from './Settings.tsx'
 import { useVaultStore } from './VaultContext.ts'
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000
-const AUTO_SYNC_MS = 60 * 1000
+// Тик лёгкий (1 запрос версии, полный sync только при изменениях) — можно чаще.
+const AUTO_SYNC_MS = 15 * 1000
 
 interface UnlockedViewProps {
   children: ReactNode
@@ -47,12 +48,21 @@ export function UnlockedView({ children }: UnlockedViewProps): React.JSX.Element
     })()
     const timer = setInterval(() => {
       if (!cancelled) {
-        void sync.syncNow()
+        void sync.tick()
       }
     }, AUTO_SYNC_MS)
+    // Возвращение в приложение (вкладка снова видима) — сразу проверить новое,
+    // не дожидаясь тика: телефон подтягивает правки в момент открытия.
+    const onVisible = (): void => {
+      if (!cancelled && document.visibilityState === 'visible') {
+        void sync.tick()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       cancelled = true
       clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [sync])
 

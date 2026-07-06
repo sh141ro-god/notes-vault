@@ -5,6 +5,7 @@ import {
   pull,
   push,
   TOMBSTONE_TTL_SECONDS,
+  version,
   type KvLike,
   type SyncItem,
 } from './syncStore.ts'
@@ -105,6 +106,28 @@ describe('syncStore.push/pull (LWW)', () => {
     // Воскрешение более новой правкой снимает TTL.
     await push(kv, 'B', null, [it0('a', 3, 'BACK')])
     expect(kv.ttls.get('B:item:notes/a')).toBeUndefined()
+  })
+
+  it('версия: меняется при реальных изменениях, стабильна при пустых push', async () => {
+    const kv = makeKv()
+    expect(await version(kv, 'B')).toBeNull()
+
+    const first = await push(kv, 'B', 'META', [it0('a', 1, 'CT')])
+    expect(first.ver).not.toBeNull()
+    expect(await version(kv, 'B')).toBe(first.ver)
+
+    // Пустой push с той же meta — версия не дребезжит.
+    const idle = await push(kv, 'B', 'META', [])
+    expect(idle.ver).toBe(first.ver)
+
+    // Проигравший LWW элемент ничего не меняет — версия та же.
+    const losing = await push(kv, 'B', 'META', [it0('a', 0, 'OLD')])
+    expect(losing.ver).toBe(first.ver)
+
+    // Реальное изменение (и meta, и элемент) двигает версию.
+    const bumped = await push(kv, 'B', 'META2', [it0('a', 2, 'NEW')])
+    expect(bumped.ver).not.toBe(first.ver)
+    expect((await pull(kv, 'B')).ver).toBe(bumped.ver)
   })
 
   it('корзины изолированы друг от друга', async () => {

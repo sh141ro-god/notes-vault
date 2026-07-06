@@ -21,6 +21,17 @@ export interface SyncState {
 export interface SyncController {
   getState(): SyncState
   subscribe(listener: () => void): () => void
+  /**
+   * Сигнал «локальные данные изменились»: планирует sync с коротким дебаунсом,
+   * чтобы правка уезжала на сервер сразу после сохранения, а серия правок —
+   * одним циклом. No-op, когда синхронизация выключена.
+   */
+  notifyLocalChange(): void
+  /**
+   * Лёгкий периодический тик: если есть локальные изменения — полный sync;
+   * иначе 1 запросом сверяет версию корзины и синкается только при отличии.
+   */
+  tick(): Promise<void>
   /** Включить на ЭТОМ устройстве: сгенерировать код и выгрузить волт. */
   enable(): Promise<string>
   /** Включить с УЖЕ существующим кодом (присоединиться к общей корзине). */
@@ -56,6 +67,13 @@ export function createSyncController(deps: SyncControllerDeps): SyncController {
   }
   let service: ReturnType<typeof createSyncService> | undefined
   let pendingJoinCode: string | undefined
+  /** Версия корзины после последнего успешного цикла (undefined = неизвестна). */
+  let lastVer: string | null | undefined
+  /** Есть несинхронизированные локальные изменения. */
+  let dirty = false
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined
+
+  const PUSH_DEBOUNCE_MS = 2000
 
   function setState(patch: Partial<SyncState>): void {
     state = { ...state, ...patch }
@@ -86,7 +104,9 @@ export function createSyncController(deps: SyncControllerDeps): SyncController {
     }
     setState({ status: 'syncing', error: undefined })
     try {
-      await service.syncNow()
+      const summary = await service.syncNow()
+      lastVer = summary.ver
+      dirty = false
       setState({ status: 'ok', lastSyncAt: Date.now() })
     } catch (error) {
       setState({
@@ -94,6 +114,10 @@ export function createSyncController(deps: SyncControllerDeps): SyncController {
         error: error instanceof Error ? error.message : String(error),
       })
     }
+  }
+
+  function unlocked(): boolean {
+    return deps.vault.status() === 'unlocked'
   }
 
   return {
@@ -155,9 +179,51 @@ export function createSyncController(deps: SyncControllerDeps): SyncController {
       await runSync()
     },
 
+    notifyLocalChange(): void {
+      if (!service) {
+        return
+      }
+      dirty = true
+      if (debounceTimer !== undefined) {
+        clearTimeout(debounceTimer)
+      }
+      debounceTimer = setTimeout(() => {
+        debounceTimer = undefined
+        // Волт мог залочиться за время дебаунса — тогда просто ждём следующей
+        // разблокировки (resume сделает полный sync).
+        if (dirty && unlocked()) {
+          void runSync()
+        }
+      }, PUSH_DEBOUNCE_MS)
+    },
+
+    async tick(): Promise<void> {
+      if (!service || !unlocked() || state.status === 'syncing') {
+        return
+      }
+      if (dirty) {
+        await runSync()
+        return
+      }
+      try {
+        const ver = await service.remoteVersion()
+        if (ver !== lastVer) {
+          await runSync()
+        }
+      } catch {
+        // Тихий тик: сеть моргнула — не пугаем баннером, следующий тик повторит.
+      }
+    },
+
     async disable(): Promise<void> {
       await config.clear()
       service = undefined
+      lastVer = undefined
+      dirty = false
+      if (debounceTimer !== undefined) {
+        clearTimeout(debounceTimer)
+        debounceTimer = undefined
+      }
       setState({ status: 'off', code: undefined, error: undefined })
     },
   }

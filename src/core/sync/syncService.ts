@@ -25,11 +25,15 @@ export interface SyncSummary {
   pulled: number
   pushed: number
   appliedLocal: number
+  /** Версия корзины после цикла — для дешёвых проверок «есть ли новое». */
+  ver: string | null
 }
 
 export interface SyncService {
   /** Полный цикл (требует разблокированного волта): pull → merge → apply → push. */
   syncNow(): Promise<SyncSummary>
+  /** Версия корзины на сервере (1 запрос, без выгрузки). */
+  remoteVersion(): Promise<string | null>
   /**
    * Первичная загрузка на НОВОМ устройстве (волт ещё заблокирован): скачивает
    * открытую VaultMeta и зашифрованные блобы, чтобы волт «появился». Индексы
@@ -132,13 +136,20 @@ export function createSyncService(deps: SyncServiceDeps): SyncService {
         const local = await gatherLocal()
         const { applyLocal, push } = mergeSync(local.items, remote.items)
         await applyRemote(applyLocal)
-        await target.push(local.meta, push)
+        const pushed = await target.push(local.meta, push)
         return {
           pulled: remote.items.length,
           pushed: push.length,
           appliedLocal: applyLocal.length,
+          // Версия после нашего push: следующая дешёвая проверка не увидит
+          // «новое» от собственных изменений.
+          ver: pushed.ver ?? remote.ver,
         }
       })
+    },
+
+    remoteVersion(): Promise<string | null> {
+      return target.version()
     },
 
     bootstrap(): Promise<void> {

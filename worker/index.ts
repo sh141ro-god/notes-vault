@@ -2,6 +2,7 @@ import {
   authorize,
   pull,
   push,
+  version,
   type KvLike,
   type SyncItem,
 } from '../functions/_lib/syncStore'
@@ -72,9 +73,30 @@ async function handlePush(request: Request, env: Env): Promise<Response> {
   return json(200, await push(env.SYNC_KV, syncId, body.meta, body.items))
 }
 
+async function handleVer(request: Request, env: Env): Promise<Response> {
+  const token = bearer(request)
+  let body: { syncId?: string }
+  try {
+    body = (await request.json()) as { syncId?: string }
+  } catch {
+    return json(400, { error: 'bad json' })
+  }
+  const syncId = body.syncId ?? ''
+  if (!syncId || !token) {
+    return json(400, { error: 'missing syncId or token' })
+  }
+  if (!(await authorize(env.SYNC_KV, syncId, token))) {
+    return json(403, { error: 'forbidden' })
+  }
+  return json(200, { ver: await version(env.SYNC_KV, syncId) })
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
+    if (request.method === 'POST' && url.pathname === '/v1/ver') {
+      return handleVer(request, env)
+    }
     if (request.method === 'POST' && url.pathname === '/v1/pull') {
       return handlePull(request, env)
     }
