@@ -6,7 +6,29 @@ import type { ModuleContract } from '@core/registry/moduleContract.ts'
 import { defineModule } from '@core/registry/moduleContract.ts'
 import { buildModuleList } from '@core/registry/moduleRegistry.ts'
 
+import { VaultStoreProvider } from '@core/vault-ui/VaultContext.ts'
+import type { VaultStore } from '@core/vault-ui/vaultStore.ts'
+
 import { Shell } from './Shell.tsx'
+
+const fakeStore = {
+  subscribe: () => () => undefined,
+  getSnapshot: () => ({
+    status: 'unlocked',
+    pinAvailable: false,
+    pendingRecoveryCode: undefined,
+  }),
+  initialize: () => Promise.resolve(),
+  setup: () => Promise.resolve(),
+  acknowledgeRecovery: () => undefined,
+  unlockWithPassphrase: () => Promise.resolve(),
+  unlockWithPin: () => Promise.resolve(),
+  unlockWithRecovery: () => Promise.resolve(),
+  enablePin: () => Promise.resolve(),
+  changePassphrase: () => Promise.resolve(),
+  regenerateRecoveryCode: () => Promise.resolve(),
+  lock: () => undefined,
+} as unknown as VaultStore
 
 const Alpha = (): React.JSX.Element => <div>ALPHA_PAGE</div>
 const Beta = (): React.JSX.Element => <div>BETA_PAGE</div>
@@ -27,7 +49,9 @@ const moduleB = defineModule({
 function render(path: string, modules: ModuleContract[]): string {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
-      <Shell modules={modules} />
+      <VaultStoreProvider value={fakeStore}>
+        <Shell modules={modules} />
+      </VaultStoreProvider>
     </MemoryRouter>,
   )
 }
@@ -75,9 +99,11 @@ describe('Shell — fallback-маршрут', () => {
     const list = buildModuleList({ a: { default: moduleA } })
     const html = renderToStaticMarkup(
       <MemoryRouter initialEntries={['/does-not-exist']}>
-        <Shell modules={list} />
+        <VaultStoreProvider value={fakeStore}>
+          <Shell modules={list} />
+        </VaultStoreProvider>
       </MemoryRouter>,
-    )
+      )
     expect(html).toContain('Страница не найдена')
   })
 })

@@ -158,6 +158,38 @@ export function CalendarPage(): React.JSX.Element {
     }
   }
 
+  async function onDeleteCalendar(): Promise<void> {
+    if (selectedCalendar === undefined) return
+    const cal = calendars.find((c) => c.id === selectedCalendar)
+    if (!cal) return
+    if (
+      !window.confirm(
+        `Удалить календарь «${cal.name}»? Его задачи вернутся в Основной, не удалятся.`,
+      )
+    ) {
+      return
+    }
+    setError(null)
+    try {
+      // Задачи этого календаря переносим в Основной (снимаем calendarId).
+      const affected = entries.filter((e) => e.calendarId === selectedCalendar)
+      for (const entry of affected) {
+        const task = await repo.get(entry.id)
+        if (task) {
+          const next = { ...task }
+          delete next.calendarId
+          await repo.save({ ...next, updatedAt: Date.now() })
+        }
+      }
+      await calRepo.remove(selectedCalendar)
+      setSelectedCalendar(undefined)
+      await reloadCalendars()
+      await reload()
+    } catch (e) {
+      setError(describeError(e))
+    }
+  }
+
   async function onImportFile(file: File): Promise<void> {
     setError(null)
     try {
@@ -231,6 +263,16 @@ export function CalendarPage(): React.JSX.Element {
           >
             Импорт
           </button>
+          {selectedCalendar !== undefined && (
+            <button
+              type="button"
+              className="cl__cal cl__cal--del"
+              title="Удалить этот календарь"
+              onClick={() => { void onDeleteCalendar() }}
+            >
+              Удалить
+            </button>
+          )}
           <input
             ref={fileRef}
             type="file"

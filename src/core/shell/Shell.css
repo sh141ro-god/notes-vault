@@ -265,3 +265,13 @@
     transform: none;
   }
 }
+
+/* Кнопки «Настройки/Заблокировать» в подвале меню (drawer). */
+.shell__vault-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 2px;
+}
+.shell__vault-actions button {
+  flex: 1;
+}

@@ -4,6 +4,8 @@ import { NavLink, Navigate, Route, Routes } from 'react-router'
 
 import type { ModuleContract } from '@core/registry/moduleContract.ts'
 import { ThemeSwitcher } from '@core/styles/ThemeSwitcher.tsx'
+import { Settings } from '@core/vault-ui/Settings.tsx'
+import { useVaultStore } from '@core/vault-ui/VaultContext.ts'
 
 import { ErrorBoundary } from './ErrorBoundary.tsx'
 import './Shell.css'
@@ -123,6 +125,8 @@ export function Shell({ modules }: ShellProps): React.JSX.Element {
   const online = useOnline()
   const isMobile = useIsMobile()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const store = useVaultStore()
+  const [showSettings, setShowSettings] = useState(false)
 
   const menuItems: MenuItem[] = modules.flatMap((module) =>
     module.menu
@@ -289,6 +293,27 @@ export function Shell({ modules }: ShellProps): React.JSX.Element {
         </nav>
 
         <div className="shell__footer">
+          <div className="shell__vault-actions">
+            <button
+              type="button"
+              onClick={() => {
+                closeDrawer()
+                setShowSettings(true)
+              }}
+            >
+              Настройки
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                closeDrawer()
+                store.lock()
+              }}
+            >
+              Заблокировать
+            </button>
+          </div>
           <ThemeSwitcher />
           <div className="shell__enc mono">
             <LockIcon />
@@ -325,5 +350,29 @@ export function Shell({ modules }: ShellProps): React.JSX.Element {
     </div>
   )
 
-  return <>{composeProviders(modules, content)}</>
+  return (
+    <>
+      {composeProviders(modules, content)}
+      {showSettings && (
+        <div
+          className="vault-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowSettings(false)
+            }
+          }}
+        >
+          <div className="vault-modal">
+            <Settings
+              onClose={() => {
+                setShowSettings(false)
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </>
+  )
 }

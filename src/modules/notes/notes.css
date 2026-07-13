@@ -727,9 +727,15 @@
   .nv__back:hover:not(:disabled) {
     background: transparent;
   }
-  /* Карточка заметки на телефоне — во всю ширину, без широкого outline-offset. */
+  /* Заметка на телефоне — на ПОЛНЫЙ экран, без «сжатия» карточкой. */
+  .nv--note-open .nv__main {
+    padding: 0;
+  }
   .nv--note-open .nd.glass-card {
-    outline-width: 2px;
-    outline-offset: 3px;
+    outline: none;
+    border-radius: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }

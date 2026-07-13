@@ -589,3 +589,21 @@
   flex: 1;
   min-width: 0;
 }
+
+.cl__cal--del {
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
+/* Мобильная раскладка календаря (<=720px): карточка дня сверху, сетка ниже. */
+@media (max-width: 720px) {
+  .cl {
+    gap: 14px;
+  }
+  .cl__rail {
+    order: -1;
+  }
+  .cl__grid {
+    min-height: 320px;
+  }
+}
