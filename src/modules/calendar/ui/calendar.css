@@ -546,3 +546,46 @@
     width: auto;
   }
 }
+
+/* ================= Переключатель календарей-целей ================= */
+.cl__cals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+.cl__cal {
+  font-size: 12.5px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--field);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+}
+.cl__cal--on {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  font-weight: 600;
+}
+.cl__cal--add {
+  font-size: 15px;
+  line-height: 1;
+  padding: 4px 11px;
+}
+.cl__cal--import {
+  margin-left: auto;
+  color: var(--dim);
+}
+.cl__file {
+  display: none;
+}
+.cl__cal-create {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.cl__cal-create input {
+  flex: 1;
+  min-width: 0;
+}

@@ -41,6 +41,8 @@ export const ManifestEntrySchema = z.object({
   openCount: z.number().int().nonnegative().optional(),
   /** Прогресс цепочки/чеклиста: выполнено из общего. */
   progress: ManifestProgressSchema.optional(),
+  /** Календарь-цель, к которому привязана задача (undefined = Основной). */
+  calendarId: z.string().uuid().optional(),
 })
 export type ManifestEntry = z.infer<typeof ManifestEntrySchema>
 
@@ -50,7 +52,7 @@ export type ManifestEntry = z.infer<typeof ManifestEntrySchema>
  */
 export type ManifestIndexFields = Pick<
   ManifestEntry,
-  'title' | 'tagIds' | 'day' | 'lastOpenedAt' | 'openCount' | 'progress'
+  'title' | 'tagIds' | 'day' | 'lastOpenedAt' | 'openCount' | 'progress' | 'calendarId'
 >
 
 export const ManifestSchema = z.object({

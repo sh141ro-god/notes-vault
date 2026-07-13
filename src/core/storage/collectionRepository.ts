@@ -120,6 +120,7 @@ export function createCollectionRepository<T extends CollectionEntity>(
     if (fields.lastOpenedAt !== undefined) entry.lastOpenedAt = fields.lastOpenedAt
     if (fields.openCount !== undefined) entry.openCount = fields.openCount
     if (fields.progress !== undefined) entry.progress = fields.progress
+    if (fields.calendarId !== undefined) entry.calendarId = fields.calendarId
     return entry
   }
 

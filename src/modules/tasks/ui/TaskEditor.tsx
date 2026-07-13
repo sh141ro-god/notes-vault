@@ -5,6 +5,8 @@ import { TagPicker } from '@core/tags/ui/TagPicker.tsx'
 import { ErrorBanner } from '@core/ui/ErrorBanner.tsx'
 import { describeError } from '@core/ui/describeError.ts'
 import { useServices } from '@core/services/ServicesContext.ts'
+import { type Calendar } from '@core/calendars/calendarEntity.ts'
+import { createCalendarRepository } from '@core/calendars/calendarRepository.ts'
 
 import {
   canToggleStep,
@@ -31,15 +33,24 @@ function detachDay(task: Task): Task {
   return next
 }
 
+/** Снимает привязку к календарю (→ Основной). */
+function detachCalendar(task: Task): Task {
+  const next: Task = { ...task }
+  delete next.calendarId
+  return next
+}
+
 export function TaskEditor(): React.JSX.Element {
   const services = useServices()
   const navigate = useNavigate()
   const { id } = useParams()
   const repo = useMemo(() => createTaskRepository(services), [services])
+  const calRepo = useMemo(() => createCalendarRepository(services), [services])
   const [task, setTask] = useState<Task | undefined>(undefined)
   const [load, setLoad] = useState<LoadState>('loading')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [calendars, setCalendars] = useState<Calendar[]>([])
 
   useEffect(() => {
     if (id === undefined) {
@@ -72,6 +83,16 @@ export function TaskEditor(): React.JSX.Element {
       active = false
     }
   }, [repo, id])
+
+  useEffect(() => {
+    let active = true
+    void calRepo.listAll().then((cals) => {
+      if (active) setCalendars(cals)
+    })
+    return () => {
+      active = false
+    }
+  }, [calRepo])
 
   async function onSave(current: Task): Promise<void> {
     setError(null)
@@ -202,6 +223,25 @@ export function TaskEditor(): React.JSX.Element {
             Без даты. Прикрепить ко дню можно на Главной (сегодня) или в Календаре.
           </p>
         )}
+      </div>
+
+      <div className="tasks__field">
+        <span>Календарь</span>
+        <select
+          className="tasks__calendar"
+          value={current.calendarId ?? ''}
+          onChange={(event) => {
+            const value = event.target.value
+            setTask(value === '' ? detachCalendar(current) : { ...current, calendarId: value })
+          }}
+        >
+          <option value="">Основной</option>
+          {calendars.map((cal) => (
+            <option key={cal.id} value={cal.id}>
+              {cal.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="tasks__field">

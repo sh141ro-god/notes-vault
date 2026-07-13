@@ -30,6 +30,7 @@ export function createTaskRepository(deps: TaskRepositoryDeps): TaskRepository {
       tagIds: task.tagIds,
       progress: taskProgress(task),
       ...(task.day !== undefined ? { day: task.day } : {}),
+      ...(task.calendarId !== undefined ? { calendarId: task.calendarId } : {}),
     }),
     ...deps,
   })

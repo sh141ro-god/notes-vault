@@ -696,3 +696,40 @@
     padding-top: 18px;
   }
 }
+
+/* ================= Мобильный режим заметок (<=720px) =================
+ * Список и заметка — ДВА отдельных экрана (NotesScreen рендерит только один).
+ * Плюс верхняя «кнопка назад» и свайп вправо (в NotesScreen). */
+@media (max-width: 720px) {
+  .nv {
+    flex-direction: column;
+    min-height: 0;
+  }
+  .nv__main {
+    width: 100%;
+    padding: 4px 0 0;
+  }
+  /* Кнопка «назад» на экране заметки. */
+  .nv__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    margin: 0 0 12px;
+    padding: 8px 12px 8px 6px;
+    background: transparent;
+    border: none;
+    color: var(--accent2-text, var(--accent));
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .nv__back:hover:not(:disabled) {
+    background: transparent;
+  }
+  /* Карточка заметки на телефоне — во всю ширину, без широкого outline-offset. */
+  .nv--note-open .nd.glass-card {
+    outline-width: 2px;
+    outline-offset: 3px;
+  }
+}

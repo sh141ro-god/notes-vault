@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
 
 import { ErrorBanner } from '@core/ui/ErrorBanner.tsx'
@@ -10,6 +10,9 @@ import { isDayBeforeToday, todayKey } from '@core/time/dayKey.ts'
 import { createTask, indexStatus, isTaskDone } from '../../tasks/model.ts'
 import { loadTaskIndex } from '../../tasks/loadIndex.ts'
 import { createTaskRepository } from '../../tasks/taskRepository.ts'
+import { type Calendar, createCalendar } from '../calendarEntity.ts'
+import { createCalendarRepository } from '../calendarRepository.ts'
+import { parseCalendarPlan } from '../calendarImport.ts'
 import {
   aggregateByDay,
   dayRatioColor,
@@ -47,24 +50,37 @@ function fmtSelected(key: string): { day: string; weekday: string; monthYear: st
 export function CalendarPage(): React.JSX.Element {
   const services = useServices()
   const repo = useMemo(() => createTaskRepository(services), [services])
+  const calRepo = useMemo(() => createCalendarRepository(services), [services])
 
   const now0 = new Date()
   const [year, setYear] = useState(now0.getFullYear())
   const [month0, setMonth0] = useState(now0.getMonth())
   const [entries, setEntries] = useState<ManifestEntry[]>([])
+  const [calendars, setCalendars] = useState<Calendar[]>([])
+  // undefined = «Основной» (задачи без calendarId).
+  const [selectedCalendar, setSelectedCalendar] = useState<string | undefined>(undefined)
   const [selected, setSelected] = useState<string>(todayKey())
   const [title, setTitle] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement | null>(null)
 
   async function reload(): Promise<void> {
     setEntries(await loadTaskIndex(repo))
   }
+  async function reloadCalendars(): Promise<void> {
+    setCalendars(await calRepo.listAll())
+  }
 
   useEffect(() => {
     let active = true
-    loadTaskIndex(repo)
-      .then((index) => {
-        if (active) setEntries(index)
+    Promise.all([loadTaskIndex(repo), calRepo.listAll()])
+      .then(([index, cals]) => {
+        if (active) {
+          setEntries(index)
+          setCalendars(cals)
+        }
       })
       .catch((e: unknown) => {
         if (active) setError(describeError(e))
@@ -72,20 +88,26 @@ export function CalendarPage(): React.JSX.Element {
     return () => {
       active = false
     }
-  }, [repo])
+  }, [repo, calRepo])
+
+  // Задачи выбранного календаря (Основной = calendarId отсутствует).
+  const visible = useMemo(
+    () => entries.filter((e) => e.calendarId === selectedCalendar),
+    [entries, selectedCalendar],
+  )
 
   const cells = useMemo(() => monthGrid(year, month0), [year, month0])
-  const agg = useMemo(() => aggregateByDay(entries), [entries])
+  const agg = useMemo(() => aggregateByDay(visible), [visible])
   const byDay = useMemo(() => {
     const map = new Map<string, ManifestEntry[]>()
-    for (const e of entries) {
+    for (const e of visible) {
       if (e.day === undefined) continue
       const arr = map.get(e.day) ?? []
       arr.push(e)
       map.set(e.day, arr)
     }
     return map
-  }, [entries])
+  }, [visible])
 
   const today = todayKey()
   const nowMs = Date.now()
@@ -108,9 +130,45 @@ export function CalendarPage(): React.JSX.Element {
     if (text === '') return
     setError(null)
     try {
-      await repo.save({ ...createTask(text), day: selected })
+      await repo.save({
+        ...createTask(text),
+        day: selected,
+        ...(selectedCalendar !== undefined ? { calendarId: selectedCalendar } : {}),
+      })
       setTitle('')
       await reload()
+    } catch (e) {
+      setError(describeError(e))
+    }
+  }
+
+  async function onCreateCalendar(): Promise<void> {
+    const name = newName.trim()
+    if (name === '') return
+    setError(null)
+    try {
+      const cal = createCalendar(name)
+      await calRepo.save(cal)
+      setNewName('')
+      setCreating(false)
+      await reloadCalendars()
+      setSelectedCalendar(cal.id)
+    } catch (e) {
+      setError(describeError(e))
+    }
+  }
+
+  async function onImportFile(file: File): Promise<void> {
+    setError(null)
+    try {
+      const { calendar, tasks } = parseCalendarPlan(await file.text())
+      await calRepo.save(calendar)
+      for (const task of tasks) {
+        await repo.save(task)
+      }
+      await reloadCalendars()
+      await reload()
+      setSelectedCalendar(calendar.id)
     } catch (e) {
       setError(describeError(e))
     }
@@ -137,6 +195,71 @@ export function CalendarPage(): React.JSX.Element {
   return (
     <div className="cl">
       <section className="cl__card glass-card">
+        {/* Переключатель календарей-целей */}
+        <div className="cl__cals">
+          <button
+            type="button"
+            className={`cl__cal${selectedCalendar === undefined ? ' cl__cal--on' : ''}`}
+            onClick={() => { setSelectedCalendar(undefined) }}
+          >
+            Основной
+          </button>
+          {calendars.map((cal) => (
+            <button
+              key={cal.id}
+              type="button"
+              className={`cl__cal${selectedCalendar === cal.id ? ' cl__cal--on' : ''}`}
+              style={{ borderColor: cal.color }}
+              onClick={() => { setSelectedCalendar(cal.id) }}
+            >
+              {cal.name}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="cl__cal cl__cal--add"
+            title="Новый календарь"
+            onClick={() => { setCreating((v) => !v) }}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="cl__cal cl__cal--import"
+            title="Импорт плана"
+            onClick={() => { fileRef.current?.click() }}
+          >
+            Импорт
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="cl__file"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) void onImportFile(file)
+              event.target.value = ''
+            }}
+          />
+        </div>
+        {creating && (
+          <form
+            className="cl__cal-create"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void onCreateCalendar()
+            }}
+          >
+            <input
+              value={newName}
+              placeholder="Название календаря-цели"
+              onChange={(event) => { setNewName(event.target.value) }}
+            />
+            <button type="submit" className="btn-primary">Создать</button>
+          </form>
+        )}
+
         <header className="cl__head">
           <div className="cl__title-wrap">
             <h1 className="cl__title mono">{monthLabel(year, month0)}</h1>
@@ -148,9 +271,6 @@ export function CalendarPage(): React.JSX.Element {
           <button type="button" className="cl__today mono" onClick={() => { goToday() }}>
             Сегодня
           </button>
-          <div className="cl__legend mono">
-            <span className="cl__leg"><span className="cl__leg-dot" />задачи</span>
-          </div>
         </header>
 
         <div className="cl__weekdays">

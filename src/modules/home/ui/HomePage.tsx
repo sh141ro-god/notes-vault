@@ -74,7 +74,12 @@ export function HomePage(): React.JSX.Element {
 
   async function loadTodayTasks(): Promise<ManifestEntry[]> {
     const index = await loadTaskIndex(taskRepo)
-    return index.filter((entry) => entry.day === today)
+    // Сегодняшние + незакрытые прошлые (просроченные = indexStatus 'failed').
+    const shown = index.filter(
+      (entry) => entry.day === today || indexStatus(entry) === 'failed',
+    )
+    // Просроченные (старые дни) — сверху, сегодняшние — ниже.
+    return [...shown].sort((a, b) => (a.day ?? '').localeCompare(b.day ?? ''))
   }
 
   async function loadRecent(now: number): Promise<{ list: RecentNote[]; total: number }> {
@@ -187,7 +192,7 @@ export function HomePage(): React.JSX.Element {
             <ErrorBanner message={error} onClose={() => { setError(null) }} />
           )}
           <div className="home__tasks-head">
-            <span className="label-mono">Задачи на сегодня</span>
+            <span className="label-mono">Сегодня и просроченные</span>
             <span className="home__badge mono">{doneToday}/{todayTasks.length}</span>
             <button
               type="button"
@@ -202,7 +207,7 @@ export function HomePage(): React.JSX.Element {
           {loading ? (
             <p className="home__muted">Загрузка…</p>
           ) : todayTasks.length === 0 ? (
-            <p className="home__muted">На сегодня задач нет.</p>
+            <p className="home__muted">Задач нет.</p>
           ) : (
             todayTasks.map((entry) => {
               const status = indexStatus(entry, now)

@@ -13,6 +13,7 @@ import type { ModuleContract } from '@core/registry/moduleContract.ts'
 import { createIdbRepository } from '@core/storage/idbAdapter.ts'
 import type { Repository } from '@core/storage/repository.ts'
 import { withWriteNotifier } from '@core/storage/writeNotifier.ts'
+import { createCalendarRepository } from '@core/calendars/calendarRepository.ts'
 import { createTagRepository } from '@core/tags/tagRepository.ts'
 import { createSyncController } from '@core/sync/syncController.ts'
 import type { SyncController } from '@core/sync/syncController.ts'
@@ -68,6 +69,7 @@ export function createContainer(deps: ContainerDeps): AppContainer {
   const noteRepo = createNoteRepository({ repository, crypto, vault })
   const taskRepo = createTaskRepository({ repository, crypto, vault })
   const tagRepo = createTagRepository({ repository, crypto, vault })
+  const calendarRepo = createCalendarRepository({ repository, crypto, vault })
   const sync = createSyncController({
     repository,
     crypto,
@@ -77,6 +79,7 @@ export function createContainer(deps: ContainerDeps): AppContainer {
       { name: 'notes', reindex: () => noteRepo.reindex().then(() => undefined) },
       { name: 'tasks', reindex: () => taskRepo.reindex().then(() => undefined) },
       { name: 'tags', reindex: () => tagRepo.reindex().then(() => undefined) },
+      { name: 'calendars', reindex: () => calendarRepo.reindex().then(() => undefined) },
     ],
   })
 

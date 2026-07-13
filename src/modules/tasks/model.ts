@@ -28,6 +28,8 @@ const TaskV2Schema = z.object({
     .refine(isDayKey, { message: 'Некорректный ключ дня' })
     .optional(),
   tagIds: z.array(z.string().uuid()).default([]),
+  /** Календарь-цель (undefined = Основной). */
+  calendarId: z.string().uuid().optional(),
   createdAt: z.number().int(),
   updatedAt: z.number().int(),
   schemaVersion: z.literal(TASK_SCHEMA_VERSION),
