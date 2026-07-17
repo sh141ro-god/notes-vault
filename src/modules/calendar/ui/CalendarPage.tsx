@@ -7,7 +7,14 @@ import { useServices } from '@core/services/ServicesContext.ts'
 import type { ManifestEntry } from '@core/storage/manifest.ts'
 import { isDayBeforeToday, todayKey } from '@core/time/dayKey.ts'
 
-import { createTask, indexStatus, isTaskDone } from '../../tasks/model.ts'
+import {
+  canToggleStep,
+  createTask,
+  indexStatus,
+  isTaskDone,
+  type Task,
+  toggleStep,
+} from '../../tasks/model.ts'
 import { loadTaskIndex } from '../../tasks/loadIndex.ts'
 import { createTaskRepository } from '../../tasks/taskRepository.ts'
 import { type Calendar, createCalendar } from '../calendarEntity.ts'
@@ -65,6 +72,8 @@ export function CalendarPage(): React.JSX.Element {
   const [newName, setNewName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [fullTasks, setFullTasks] = useState<Map<string, Task>>(new Map())
 
   async function reload(): Promise<void> {
     setEntries(await loadTaskIndex(repo))
@@ -162,24 +171,15 @@ export function CalendarPage(): React.JSX.Element {
     if (selectedCalendar === undefined) return
     const cal = calendars.find((c) => c.id === selectedCalendar)
     if (!cal) return
-    if (
-      !window.confirm(
-        `Удалить календарь «${cal.name}»? Его задачи вернутся в Основной, не удалятся.`,
-      )
-    ) {
+    if (!window.confirm(`Удалить календарь «${cal.name}» и все его задачи?`)) {
       return
     }
     setError(null)
     try {
-      // Задачи этого календаря переносим в Основной (снимаем calendarId).
+      // Задачи этого календаря удаляем вместе с ним.
       const affected = entries.filter((e) => e.calendarId === selectedCalendar)
       for (const entry of affected) {
-        const task = await repo.get(entry.id)
-        if (task) {
-          const next = { ...task }
-          delete next.calendarId
-          await repo.save({ ...next, updatedAt: Date.now() })
-        }
+        await repo.remove(entry.id)
       }
       await calRepo.remove(selectedCalendar)
       setSelectedCalendar(undefined)
@@ -201,6 +201,33 @@ export function CalendarPage(): React.JSX.Element {
       await reloadCalendars()
       await reload()
       setSelectedCalendar(calendar.id)
+    } catch (e) {
+      setError(describeError(e))
+    }
+  }
+
+  async function toggleExpand(id: string): Promise<void> {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    if (!fullTasks.has(id)) {
+      const task = await repo.get(id)
+      if (task) setFullTasks((m) => new Map(m).set(id, task))
+    }
+  }
+
+  async function onToggleStep(taskId: string, stepId: string): Promise<void> {
+    setError(null)
+    try {
+      const task = fullTasks.get(taskId) ?? (await repo.get(taskId))
+      if (!task) return
+      const next = toggleStep(task, stepId)
+      await repo.save(next)
+      setFullTasks((m) => new Map(m).set(taskId, next))
+      await reload()
     } catch (e) {
       setError(describeError(e))
     }
@@ -331,8 +358,7 @@ export function CalendarPage(): React.JSX.Element {
                 : undefined
             const isToday = cell.key === today
             const isSel = cell.key === selected
-            const events = (byDay.get(cell.key) ?? []).slice(0, 2)
-            const more = (byDay.get(cell.key)?.length ?? 0) - events.length
+            const hasTasks = (byDay.get(cell.key)?.length ?? 0) > 0
             const classes = [
               'cl__cell',
               cell.inMonth ? '' : 'cl__cell--out',
@@ -349,17 +375,7 @@ export function CalendarPage(): React.JSX.Element {
                 <span className={`cl__num mono${isToday ? ' cl__num--today' : ''}`}>
                   {cell.day}
                 </span>
-                <span className="cl__events">
-                  {events.map((e) => (
-                    <span key={e.id} className="cl__event">
-                      <span className="cl__event-dot" />
-                      <span className="cl__event-label">
-                        {e.title !== undefined && e.title !== '' ? e.title : 'Без названия'}
-                      </span>
-                    </span>
-                  ))}
-                  {more > 0 && <span className="cl__more mono">+{more}</span>}
-                </span>
+                {hasTasks && <span className="cl__dot" />}
               </button>
             )
           })}
@@ -408,23 +424,65 @@ export function CalendarPage(): React.JSX.Element {
               dayTasks.map((entry) => {
                 const status = indexStatus(entry, nowMs)
                 const done = status === 'done'
+                const isChain = (entry.progress?.total ?? 0) > 1
+                const open = expanded.has(entry.id)
+                const full = fullTasks.get(entry.id)
+                const label =
+                  entry.title !== undefined && entry.title !== '' ? entry.title : 'Без названия'
                 return (
-                  <div key={entry.id} className="cl__task">
-                    <button
-                      type="button"
-                      className={`cl__check${done ? ' cl__check--on' : ''}`}
-                      aria-label={done ? 'Снять отметку' : 'Выполнить'}
-                      onClick={() => { void onToggle(entry) }}
-                    >
-                      {done ? '✓' : ''}
-                    </button>
-                    <Link
-                      to={`/tasks/${entry.id}`}
-                      className={`cl__task-title${done ? ' cl__task-title--done' : ''}`}
-                    >
-                      {entry.title !== undefined && entry.title !== '' ? entry.title : 'Без названия'}
-                    </Link>
-                    {status === 'failed' && <span className="cl__flag mono">провалено</span>}
+                  <div key={entry.id} className="cl__taskwrap">
+                    <div className="cl__task">
+                      <button
+                        type="button"
+                        className={`cl__check${done ? ' cl__check--on' : ''}`}
+                        aria-label={done ? 'Снять отметку' : 'Выполнить'}
+                        onClick={() => { void onToggle(entry) }}
+                      >
+                        {done ? '✓' : ''}
+                      </button>
+                      {isChain ? (
+                        <button
+                          type="button"
+                          className={`cl__task-title cl__task-title--btn${done ? ' cl__task-title--done' : ''}`}
+                          onClick={() => { void toggleExpand(entry.id) }}
+                        >
+                          <span className={`cl__caret${open ? ' cl__caret--open' : ''}`}>▸</span>
+                          {label}
+                          <span className="cl__steps-meta mono">
+                            {entry.progress?.done ?? 0}/{entry.progress?.total ?? 0}
+                          </span>
+                        </button>
+                      ) : (
+                        <Link
+                          to={`/tasks/${entry.id}`}
+                          className={`cl__task-title${done ? ' cl__task-title--done' : ''}`}
+                        >
+                          {label}
+                        </Link>
+                      )}
+                      {status === 'failed' && <span className="cl__flag mono">провалено</span>}
+                    </div>
+                    {isChain && open && full && (
+                      <ol className="cl__steps">
+                        {full.steps.map((step, index) => {
+                          const locked = !step.done && !canToggleStep(full, index)
+                          return (
+                            <li key={step.id} className="cl__step">
+                              <input
+                                type="checkbox"
+                                checked={step.done}
+                                disabled={locked}
+                                title={locked ? 'Сначала закройте предыдущие шаги' : undefined}
+                                onChange={() => { void onToggleStep(entry.id, step.id) }}
+                              />
+                              <span className={step.done ? 'cl__step--done' : ''}>
+                                {step.title !== '' ? step.title : `Шаг ${String(index + 1)}`}
+                              </span>
+                            </li>
+                          )
+                        })}
+                      </ol>
+                    )}
                   </div>
                 )
               })

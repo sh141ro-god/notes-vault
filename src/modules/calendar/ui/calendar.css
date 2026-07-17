@@ -328,14 +328,14 @@
 .cl__cell {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 5px;
-  padding: 8px 9px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 4px;
   border-radius: 13px;
   border: 1px solid var(--hairline);
   background: var(--glass);
   cursor: pointer;
-  text-align: left;
   overflow: hidden;
 }
 
@@ -369,39 +369,13 @@
   font-weight: 600;
 }
 
-.cl__events {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  overflow: hidden;
-}
-
-.cl__event {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.64rem;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.cl__event-dot {
+/* Индикатор «в этот день есть задачи» — одна точка, без названий. */
+.cl__dot {
   flex: none;
   width: 6px;
   height: 6px;
-  border-radius: 2px;
+  border-radius: 50%;
   background: var(--accent);
-}
-
-.cl__event-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cl__more {
-  font-size: 0.58rem;
-  color: var(--dim);
 }
 
 /* Рейл дня */
@@ -595,15 +569,95 @@
   border-color: var(--danger-border);
 }
 
-/* Мобильная раскладка календаря (<=720px): карточка дня сверху, сетка ниже. */
+/* Мобильная раскладка календаря (<=720px): карточка дня (задачи) СВЕРХУ, сетка
+ * месяца ниже. column-reverse надёжно ставит последний блок DOM (rail) первым.
+ * Сетка компактная: клетки-квадратики, число меньше, только точка-индикатор. */
 @media (max-width: 720px) {
   .cl {
     gap: 14px;
+    flex-direction: column-reverse;
   }
-  .cl__rail {
-    order: -1;
+  .cl__head {
+    padding: 16px 16px 10px;
+    gap: 10px;
+  }
+  .cl__title {
+    font-size: 1.15rem;
+  }
+  .cl__weekdays {
+    gap: 4px;
+    padding: 0 16px 6px;
   }
   .cl__grid {
-    min-height: 320px;
+    gap: 4px;
+    padding: 0 16px 16px;
+    grid-auto-rows: auto;
   }
+  .cl__cell {
+    aspect-ratio: 1 / 1;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 10px;
+  }
+  .cl__num {
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+  }
+  .cl__day-num {
+    font-size: 2.1rem;
+  }
+}
+
+
+/* Раскрытие шагов задачи прямо в списке дня. */
+.cl__taskwrap {
+  display: flex;
+  flex-direction: column;
+}
+.cl__task-title--btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+}
+.cl__caret {
+  display: inline-block;
+  transition: transform 0.15s ease;
+  color: var(--dim);
+  font-size: 11px;
+}
+.cl__caret--open {
+  transform: rotate(90deg);
+}
+.cl__steps-meta {
+  margin-left: auto;
+  color: var(--dim);
+  font-size: 11px;
+}
+.cl__steps {
+  list-style: none;
+  margin: 4px 0 8px 30px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cl__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+.cl__step--done {
+  text-decoration: line-through;
+  color: var(--dim);
 }

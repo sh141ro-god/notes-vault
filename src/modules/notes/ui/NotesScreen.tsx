@@ -246,15 +246,6 @@ export function NotesScreen(): React.JSX.Element {
 
       {showMain && (
         <div className="nv__main" ref={mainRef}>
-          {isMobile && noteOpen && (
-            <button
-              type="button"
-              className="nv__back mono"
-              onClick={() => { void navigate('/notes') }}
-            >
-              ‹ Заметки
-            </button>
-          )}
           {error !== null && (
             <ErrorBanner message={error} onClose={() => { setError(null) }} />
           )}

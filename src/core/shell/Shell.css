@@ -269,9 +269,10 @@
 /* Кнопки «Настройки/Заблокировать» в подвале меню (drawer). */
 .shell__vault-actions {
   display: flex;
+  flex-direction: column;
   gap: 8px;
   padding: 0 2px;
 }
 .shell__vault-actions button {
-  flex: 1;
+  width: 100%;
 }
